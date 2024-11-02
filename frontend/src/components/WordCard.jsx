@@ -56,6 +56,8 @@ const WordCard = ({ word, onUpdateStatus }) => {
   const [showRatingPopup, setShowRatingPopup] = useState(false);
   const ratingRef = useRef(null);
   const audioRef = useRef(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const cardRef = useRef(null);
 
   const toggleMeaning = () => {
     setShowMeaning(!showMeaning);
@@ -75,8 +77,15 @@ const WordCard = ({ word, onUpdateStatus }) => {
     }
   };
 
+  // 处理复习状态更新
   const handleStatusUpdate = (status) => {
-    onUpdateStatus(word.wid, status, note, level);
+    // 复习状态更新时，同时提交所有更改（状态、笔记和星级）
+    onUpdateStatus(word.wid, {
+      status: status,
+      note: note,
+      level: level
+    });
+    setHasUnsavedChanges(false);
   };
 
   const getPosName = (pos) => {
@@ -119,7 +128,7 @@ const WordCard = ({ word, onUpdateStatus }) => {
         {showRatingPopup && (
           <StarRatingPopup 
             level={level}
-            onRate={setLevel}
+            onRate={handleLevelChange}
             onClose={() => setShowRatingPopup(false)}
           />
         )}
@@ -160,13 +169,69 @@ const WordCard = ({ word, onUpdateStatus }) => {
     toggleMeaning();
   };
 
+  // 处理笔记变化
+  const handleNoteChange = (e) => {
+    const newNote = e.target.value;
+    setNote(newNote);
+    setHasUnsavedChanges(true);
+  };
+
+  // 处理星级变化
+  const handleLevelChange = (newLevel) => {
+    setLevel(newLevel);
+    setHasUnsavedChanges(true);
+  };
+
+  // 保存未提交的更改（笔记和星级）
+  const saveChanges = () => {
+    if (hasUnsavedChanges) {
+      onUpdateStatus(word.wid, {
+        status: null,  // 不更新状态
+        note: note,
+        level: level
+      });
+      setHasUnsavedChanges(false);
+    }
+  };
+
+  // 组件卸载或切换单词时保存
+  useEffect(() => {
+    return () => {
+      if (hasUnsavedChanges) {
+        saveChanges();
+      }
+    };
+  }, [word.wid]);
+
+  // 鼠标离开时保存
+  const handleMouseLeave = () => {
+    if (hasUnsavedChanges) {
+      saveChanges();
+    }
+  };
+
   return (
-    <div className="card w-full bg-white shadow-sm mb-4 hover:shadow-md transition-all duration-200 
-      border-2 border-transparent hover:border-blue-400 rounded-lg">
-      <div className="card-body">
-        {/* 标题区域 */}
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
+    <div 
+      ref={cardRef}
+      onMouseLeave={handleMouseLeave}
+      className={`card w-full shadow-sm mb-4 hover:shadow-md transition-all duration-200 
+        border-2 border-transparent hover:border-blue-400 rounded-lg
+        ${hasUnsavedChanges ? 'bg-blue-50' : 'bg-white'}
+        ${word.reviewed ? 'opacity-75' : ''}`}
+    >
+      <div className="card-body relative p-4">
+        {word.reviewed && (
+          <div className="absolute top-2 right-2 text-green-500 text-sm flex items-center gap-1">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+            </svg>
+            已复习
+          </div>
+        )}
+
+        {/* 标题区域 - 移动端优化 */}
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2"> {/* 允许换行 */}
             <h2 
               className={`card-title text-3xl font-bold ${
                 word.word_group === 'study' ? 'text-blue-800' : 'text-black'
@@ -210,32 +275,43 @@ const WordCard = ({ word, onUpdateStatus }) => {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2 text-sm">
+
+          {/* 评分和统计信息 - 移动端隐藏部分信息 */}
+          <div className="flex flex-wrap items-center gap-2 text-xs">
             {renderLevelDisplay()}
-            <span className="text-gray-400 text-xs">{(word.score || 0).toFixed(1)}</span>
-            <span className="text-gray-400 text-xs">优先级: {(word.priority || 0).toFixed(2)}</span>
-            <span className="text-gray-400 text-xs">遗忘天数: {(word.days_diff || 0).toFixed(2)}</span>
-            <span className="text-gray-400 text-xs">复习率: {(word.retention_rate || 0).toFixed(2)}</span>
+            <span className="hidden sm:inline text-gray-400">
+              {(word.score || 0).toFixed(1)}
+            </span>
+            <span className="hidden sm:inline text-gray-400">
+              优先级: {(word.priority || 0).toFixed(2)} 
+            </span>
+            <span className="hidden sm:inline text-gray-400">
+              遗忘天数: {(word.days_diff || 0).toFixed(2)}
+            </span>
+            <span className="hidden sm:inline text-gray-400">
+              复习率: {(word.retention_rate || 0).toFixed(2)}
+            </span>
           </div>
         </div>
         
-        {/* 释义和操作区域 - 添加过渡效果 */}
+        {/* 释义和操作区域 */}
         <div className={`mt-4 space-y-4 overflow-hidden transition-all duration-300 ease-in-out
           ${showMeaning ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
         >
-          <p className="text-lg text-gray-700">{word.explain}</p>
+          <p className="text-base sm:text-lg text-gray-700">{word.explain}</p>
           
           <input 
             type="text"
             value={note}
-            onChange={(e) => setNote(e.target.value)}
-            className="w-full bg-transparent outline-none text-sm text-gray-500" 
+            onChange={handleNoteChange}
+            className="w-full p-2 bg-transparent outline-none text-sm text-gray-500" 
             placeholder="..."
           />
 
-          <div className="flex justify-center gap-3">
+          {/* 按钮组 - 移动端垂直排列 */}
+          <div className="flex flex-col sm:flex-row justify-center gap-2">
             <button
-              className="px-4 py-2 rounded-lg flex-1 transition-colors
+              className="px-4 py-3 sm:py-2 rounded-lg flex-1 transition-colors
                 bg-gray-50 hover:bg-green-50 text-gray-700 hover:text-green-700
                 border border-gray-200 hover:border-green-200"
               onClick={() => handleStatusUpdate(REVIEW_STATUS.KNOWN)}
@@ -243,7 +319,7 @@ const WordCard = ({ word, onUpdateStatus }) => {
               认识 👍
             </button>
             <button
-              className="px-4 py-2 rounded-lg flex-1 transition-colors
+              className="px-4 py-3 sm:py-2 rounded-lg flex-1 transition-colors
                 bg-gray-50 hover:bg-yellow-50 text-gray-700 hover:text-yellow-700
                 border border-gray-200 hover:border-yellow-200"
               onClick={() => handleStatusUpdate(REVIEW_STATUS.UNFAMILIAR)}
@@ -251,7 +327,7 @@ const WordCard = ({ word, onUpdateStatus }) => {
               不熟悉 
             </button>
             <button
-              className="px-4 py-2 rounded-lg flex-1 transition-colors
+              className="px-4 py-3 sm:py-2 rounded-lg flex-1 transition-colors
                 bg-gray-50 hover:bg-red-50 text-gray-700 hover:text-red-700
                 border border-gray-200 hover:border-red-200"
               onClick={() => handleStatusUpdate(REVIEW_STATUS.FORGET)}

@@ -12,6 +12,9 @@ const WordList = () => {
   const [totalWords, setTotalWords] = useState(0);
   const [showStats, setShowStats] = useState(true);
   const [showFloatingStats, setShowFloatingStats] = useState(false);
+  const [wordReviewCounts, setWordReviewCounts] = useState({});
+  const REVIEW_THRESHOLD = 5;  // 复习次数阈值
+  const SCORE_THRESHOLD = 0.8; // 分数阈值
 
   // 目前单页不限制单词数量, 直到所有单词都复习完 （所有需要复习词汇 + 20个新词汇）
   // TODO - 需要优化： 单词量很大时，一次性加载太多单词，影响性能
@@ -44,31 +47,41 @@ const WordList = () => {
     }
   };
 
-  const handleUpdateStatus = async (wid, status, note) => {
+  const handleUpdateStatus = async (wid, updates) => {
     try {
-      const response = await updateWordStatus(wid, status, note);
+      // 更新复习次数
+      setWordReviewCounts(prev => ({
+        ...prev,
+        [wid]: (prev[wid] || 0) + 1
+      }));
+
+      // 调用 API 更新状态
+      const response = await updateWordStatus(wid, updates);
       
+      // 更新单词状态
       setWords(prevWords => 
         prevWords.map(word => {
           if (word.wid === wid) {
-            return {
+            const updatedWord = {
               ...word,
               ...response.data,
-              note,
+              note: updates.note,
+              level: updates.level,
               ldate: new Date().toISOString()
             };
+
+            // 如果复习次数达到阈值且分数达标，1秒后移除该单词
+            if (wordReviewCounts[wid] >= REVIEW_THRESHOLD && updatedWord.score >= SCORE_THRESHOLD) {
+              setTimeout(() => {
+                setWords(prev => prev.filter(w => w.wid !== wid));
+              }, 1000);
+            }
+
+            return updatedWord;
           }
           return word;
         })
       );
-
-      setTimeout(() => {
-        setWords(prevWords => prevWords.filter(w => w.wid !== wid));
-        
-        if (words.length < LIMIT) {
-          fetchWords();
-        }
-      }, 1000);
 
     } catch (err) {
       console.error('更新单词状态失败:', err);
