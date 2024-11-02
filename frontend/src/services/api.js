@@ -14,6 +14,9 @@ export const getWords = async (limit, offset) => {
   });
 };
 
-export const updateWordStatus = async (wid, status, note) => {
-  return await axios.post('/words/status', { wid, status, note });
+export const updateWordStatus = async (wid, updates) => {
+  return await axios.post('/words/status', {
+    wid,
+    ...updates  // 包含 status, note, level 等字段
+  });
 };

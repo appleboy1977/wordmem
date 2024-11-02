@@ -56,6 +56,8 @@ const WordCard = ({ word, onUpdateStatus }) => {
   const [showRatingPopup, setShowRatingPopup] = useState(false);
   const ratingRef = useRef(null);
   const audioRef = useRef(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const cardRef = useRef(null);
 
   const toggleMeaning = () => {
     setShowMeaning(!showMeaning);
@@ -75,8 +77,15 @@ const WordCard = ({ word, onUpdateStatus }) => {
     }
   };
 
+  // 处理复习状态更新
   const handleStatusUpdate = (status) => {
-    onUpdateStatus(word.wid, status, note, level);
+    // 复习状态更新时，同时提交所有更改（状态、笔记和星级）
+    onUpdateStatus(word.wid, {
+      status: status,
+      note: note,
+      level: level
+    });
+    setHasUnsavedChanges(false);
   };
 
   const getPosName = (pos) => {
@@ -119,7 +128,7 @@ const WordCard = ({ word, onUpdateStatus }) => {
         {showRatingPopup && (
           <StarRatingPopup 
             level={level}
-            onRate={setLevel}
+            onRate={handleLevelChange}
             onClose={() => setShowRatingPopup(false)}
           />
         )}
@@ -160,10 +169,66 @@ const WordCard = ({ word, onUpdateStatus }) => {
     toggleMeaning();
   };
 
+  // 处理笔记变化
+  const handleNoteChange = (e) => {
+    const newNote = e.target.value;
+    setNote(newNote);
+    setHasUnsavedChanges(true);
+  };
+
+  // 处理星级变化
+  const handleLevelChange = (newLevel) => {
+    setLevel(newLevel);
+    setHasUnsavedChanges(true);
+  };
+
+  // 保存未提交的更改（笔记和星级）
+  const saveChanges = () => {
+    if (hasUnsavedChanges) {
+      onUpdateStatus(word.wid, {
+        status: null,  // 不更新状态
+        note: note,
+        level: level
+      });
+      setHasUnsavedChanges(false);
+    }
+  };
+
+  // 组件卸载或切换单词时保存
+  useEffect(() => {
+    return () => {
+      if (hasUnsavedChanges) {
+        saveChanges();
+      }
+    };
+  }, [word.wid]);
+
+  // 鼠标离开时保存
+  const handleMouseLeave = () => {
+    if (hasUnsavedChanges) {
+      saveChanges();
+    }
+  };
+
   return (
-    <div className="card w-full bg-white shadow-sm mb-4 hover:shadow-md transition-all duration-200 
-      border-2 border-transparent hover:border-blue-400 rounded-lg">
-      <div className="card-body">
+    <div 
+      ref={cardRef}
+      onMouseLeave={handleMouseLeave}
+      className={`card w-full shadow-sm mb-4 hover:shadow-md transition-all duration-200 
+        border-2 border-transparent hover:border-blue-400 rounded-lg
+        ${hasUnsavedChanges ? 'bg-blue-50' : 'bg-white'}
+        ${word.reviewed ? 'opacity-75' : ''}`}
+    >
+      <div className="card-body relative">
+        {word.reviewed && (
+          <div className="absolute top-2 right-2 text-green-500 text-sm flex items-center gap-1">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+            </svg>
+            已复习
+          </div>
+        )}
+
         {/* 标题区域 */}
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
@@ -228,7 +293,7 @@ const WordCard = ({ word, onUpdateStatus }) => {
           <input 
             type="text"
             value={note}
-            onChange={(e) => setNote(e.target.value)}
+            onChange={handleNoteChange}
             className="w-full bg-transparent outline-none text-sm text-gray-500" 
             placeholder="..."
           />
