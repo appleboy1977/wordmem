@@ -279,17 +279,17 @@ const WordCard = ({ word, onUpdateStatus }) => {
           {/* 评分和统计信息 - 移动端隐藏部分信息 */}
           <div className="flex flex-wrap items-center gap-2 text-xs">
             {renderLevelDisplay()}
-            <span className="hidden sm:inline text-gray-400">
-              {(word.score || 0).toFixed(1)}
+            <span className="sm:inline text-gray-400">
+              score: {(word.score || 0).toFixed(1)}
             </span>
-            <span className="hidden sm:inline text-gray-400">
-              优先级: {(word.priority || 0).toFixed(2)} 
+            <span className="sm:inline text-gray-400">
+              days: {(word.days_diff || 0).toFixed(2)}
             </span>
-            <span className="hidden sm:inline text-gray-400">
-              遗忘天数: {(word.days_diff || 0).toFixed(2)}
+            <span className="sm:inline text-gray-400">
+              re: {(word.retention_rate || 0).toFixed(2)}
             </span>
-            <span className="hidden sm:inline text-gray-400">
-              复习率: {(word.retention_rate || 0).toFixed(2)}
+            <span className="sm:inline text-gray-400">
+              p: {(word.priority || 0).toFixed(2)} 
             </span>
           </div>
         </div>
