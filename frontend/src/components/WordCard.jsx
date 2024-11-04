@@ -47,7 +47,7 @@ const StarRatingPopup = ({ level, onRate, onClose }) => {
   );
 };
 
-const WordCard = ({ word, onUpdateStatus }) => {
+const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect }) => {
   const [showMeaning, setShowMeaning] = useState(false);
   const [note, setNote] = useState(word.note || '');
   const [level, setLevel] = useState(word.level || 0);
@@ -58,6 +58,15 @@ const WordCard = ({ word, onUpdateStatus }) => {
   const audioRef = useRef(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const cardRef = useRef(null);
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [reviewCount, setReviewCount] = useState(0);
+
+  useEffect(() => {
+    if (isCurrent && cardRef.current) {
+      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      playPronunciation();
+    }
+  }, [isCurrent]);
 
   const toggleMeaning = () => {
     setShowMeaning(!showMeaning);
@@ -78,14 +87,45 @@ const WordCard = ({ word, onUpdateStatus }) => {
   };
 
   // 处理复习状态更新
-  const handleStatusUpdate = (status) => {
-    // 复习状态更新时，同时提交所有更改（状态、笔记和星级）
-    onUpdateStatus(word.wid, {
-      status: status,
-      note: note,
-      level: level
+  const handleStatusUpdate = async (status) => {
+    if (isReviewing) return; // 防止重复点击
+
+    setIsReviewing(true);
+    setReviewCount(prev => prev + 1);
+
+    // 状态动画
+    const animations = {
+      [REVIEW_STATUS.KNOWN]: 'text-green-500 scale-110',
+      [REVIEW_STATUS.UNFAMILIAR]: 'text-yellow-500 scale-110',
+      [REVIEW_STATUS.FORGET]: 'text-red-500 scale-110'
+    };
+
+    // 添加动画类
+    const button = cardRef.current.querySelector(`[data-status="${status}"]`);
+    button.classList.add(...animations[status].split(' '));
+
+    // 更新状态
+    await onUpdateStatus(word.wid, {
+      status,
+      note,
+      level
     });
-    setHasUnsavedChanges(false);
+
+    // 5秒后重置
+    setTimeout(() => {
+      setIsReviewing(false);
+      button.classList.remove(...animations[status].split(' '));
+    }, 5000);
+
+    // 检查是否达到移除条件
+    if (reviewCount >= 4 && word.score >= SCORE_THRESHOLD) {
+      setTimeout(() => {
+        cardRef.current.classList.add('scale-0', 'opacity-0');
+        setTimeout(() => onReviewComplete(), 300);
+      }, 500);
+    } else {
+      onReviewComplete();
+    }
   };
 
   const getPosName = (pos) => {
@@ -158,7 +198,7 @@ const WordCard = ({ word, onUpdateStatus }) => {
     }
   };
 
-  // 添加鼠标悬停事件处理
+  // 添加鼠标事件处理
   const handleWordHover = () => {
     playPronunciation();
   };
@@ -210,14 +250,56 @@ const WordCard = ({ word, onUpdateStatus }) => {
     }
   };
 
+  // 根据是否是当前卡片决定是否显示释义
+  useEffect(() => {
+    if (!isCurrent) {
+      setShowMeaning(false);
+    }
+  }, [isCurrent]);
+
+  // 添加点击卡片选择功能
+  const handleCardClick = (e) => {
+    // 如果点击的是按钮或输入框，不触发选择
+    if (
+      e.target.tagName === 'BUTTON' ||
+      e.target.tagName === 'INPUT' ||
+      e.target.closest('.button-group') ||
+      e.target.closest('.rating-popup')
+    ) {
+      return;
+    }
+    onSelect();
+  };
+
+  // 添加键盘控制
+  useEffect(() => {
+    const handleToggleMeaning = () => {
+      if (isCurrent) {
+        toggleMeaning();
+        playPronunciation();
+      }
+    };
+
+    cardRef.current?.addEventListener('toggleMeaning', handleToggleMeaning);
+    return () => {
+      cardRef.current?.removeEventListener('toggleMeaning', handleToggleMeaning);
+    };
+  }, [isCurrent]);
+
   return (
     <div 
       ref={cardRef}
+      onClick={handleCardClick}
+      className={`
+        card w-full shadow-sm mb-4 transition-all duration-300 cursor-pointer
+        ${isCurrent 
+          ? 'border-2 border-blue-400 bg-white shadow-lg scale-102 z-10' 
+          : 'border border-transparent bg-white/70 opacity-60 hover:opacity-80'
+        }
+        ${hasUnsavedChanges ? 'bg-blue-50' : ''}
+        ${word.reviewed ? 'opacity-75' : ''}
+      `}
       onMouseLeave={handleMouseLeave}
-      className={`card w-full shadow-sm mb-4 hover:shadow-md transition-all duration-200 
-        border-2 border-transparent hover:border-blue-400 rounded-lg
-        ${hasUnsavedChanges ? 'bg-blue-50' : 'bg-white'}
-        ${word.reviewed ? 'opacity-75' : ''}`}
     >
       <div className="card-body relative p-4">
         {word.reviewed && (
@@ -276,7 +358,7 @@ const WordCard = ({ word, onUpdateStatus }) => {
             )}
           </div>
 
-          {/* 评分和统计信息 - 移动端隐藏部分信息 */}
+          {/* 评分和统计息 - 移动端隐藏部分信息 */}
           <div className="flex flex-wrap items-center gap-2 text-xs">
             {renderLevelDisplay()}
             <span className="sm:inline text-gray-400">
@@ -294,47 +376,73 @@ const WordCard = ({ word, onUpdateStatus }) => {
           </div>
         </div>
         
-        {/* 释义和操作区域 */}
-        <div className={`mt-4 space-y-4 overflow-hidden transition-all duration-300 ease-in-out
-          ${showMeaning ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
-        >
+        {/* 释义和操作区域 - 只在当前卡片时才允许展开 */}
+        <div className={`
+          mt-4 space-y-4 overflow-hidden transition-all duration-300 ease-in-out
+          ${(showMeaning && isCurrent) ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}
+        `}>
           <p className="text-base sm:text-lg text-gray-700">{word.explain}</p>
           
-          <input 
-            type="text"
-            value={note}
-            onChange={handleNoteChange}
-            className="w-full p-2 bg-transparent outline-none text-sm text-gray-500" 
-            placeholder="..."
-          />
+          {/* 只在当前卡片显示输入框和按钮 */}
+          {isCurrent && (
+            <>
+              <input 
+                type="text"
+                value={note}
+                onChange={handleNoteChange}
+                className="w-full p-2 bg-transparent outline-none text-sm text-gray-500" 
+                placeholder="..."
+              />
 
-          {/* 按钮组 - 移动端垂直排列 */}
-          <div className="flex flex-col sm:flex-row justify-center gap-2">
-            <button
-              className="px-4 py-3 sm:py-2 rounded-lg flex-1 transition-colors
-                bg-gray-50 hover:bg-green-50 text-gray-700 hover:text-green-700
-                border border-gray-200 hover:border-green-200"
-              onClick={() => handleStatusUpdate(REVIEW_STATUS.KNOWN)}
-            >
-              认识 👍
-            </button>
-            <button
-              className="px-4 py-3 sm:py-2 rounded-lg flex-1 transition-colors
-                bg-gray-50 hover:bg-yellow-50 text-gray-700 hover:text-yellow-700
-                border border-gray-200 hover:border-yellow-200"
-              onClick={() => handleStatusUpdate(REVIEW_STATUS.UNFAMILIAR)}
-            >
-              不熟悉 
-            </button>
-            <button
-              className="px-4 py-3 sm:py-2 rounded-lg flex-1 transition-colors
-                bg-gray-50 hover:bg-red-50 text-gray-700 hover:text-red-700
-                border border-gray-200 hover:border-red-200"
-              onClick={() => handleStatusUpdate(REVIEW_STATUS.FORGET)}
-            >
-              忘记 😅
-            </button>
-          </div>
+              <div className="flex flex-col sm:flex-row justify-center gap-2">
+                <button
+                  data-status={REVIEW_STATUS.KNOWN}
+                  onClick={() => handleStatusUpdate(REVIEW_STATUS.KNOWN)}
+                  disabled={isReviewing}
+                  className={`
+                    px-4 py-3 sm:py-2 rounded-lg flex-1 
+                    transition-all duration-300
+                    bg-gray-50 hover:bg-green-50 
+                    text-gray-700 hover:text-green-700
+                    border border-gray-200 hover:border-green-200
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                  `}
+                >
+                  认识 👍
+                </button>
+                <button
+                  data-status={REVIEW_STATUS.UNFAMILIAR}
+                  onClick={() => handleStatusUpdate(REVIEW_STATUS.UNFAMILIAR)}
+                  disabled={isReviewing}
+                  className={`
+                    px-4 py-3 sm:py-2 rounded-lg flex-1 
+                    transition-all duration-300
+                    bg-gray-50 hover:bg-yellow-50 
+                    text-gray-700 hover:text-yellow-700
+                    border border-gray-200 hover:border-yellow-200
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                  `}
+                >
+                  不熟悉 
+                </button>
+                <button
+                  data-status={REVIEW_STATUS.FORGET}
+                  onClick={() => handleStatusUpdate(REVIEW_STATUS.FORGET)}
+                  disabled={isReviewing}
+                  className={`
+                    px-4 py-3 sm:py-2 rounded-lg flex-1 
+                    transition-all duration-300
+                    bg-gray-50 hover:bg-red-50 
+                    text-gray-700 hover:text-red-700
+                    border border-gray-200 hover:border-red-200
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                  `}
+                >
+                  忘记 😅
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

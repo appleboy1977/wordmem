@@ -15,6 +15,7 @@ const WordList = () => {
   const [wordReviewCounts, setWordReviewCounts] = useState({});
   const REVIEW_THRESHOLD = 5;  // 复习次数阈值
   const SCORE_THRESHOLD = 0.8; // 分数阈值
+  const [currentWordIndex, setCurrentWordIndex] = useState(0);
 
   // 目前单页不限制单词数量, 直到所有单词都复习完 （所有需要复习词汇 + 20个新词汇）
   // TODO - 需要优化： 单词量很大时，一次性加载太多单词，影响性能
@@ -120,6 +121,39 @@ const WordList = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // 添加选择当前单词的处理函数
+  const handleSelectWord = (index) => {
+    setCurrentWordIndex(index);
+  };
+
+  // 添加键盘导航
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.key === 'ArrowUp') {
+        setCurrentWordIndex(prev => Math.max(0, prev - 1));
+      } else if (e.key === 'ArrowDown') {
+        setCurrentWordIndex(prev => Math.min(words.length - 1, prev + 1));
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        // 阻止空格键滚动页面
+        e.preventDefault();
+        // 触发当前单词的显示/隐藏释义
+        const currentWord = document.querySelector(`[data-word-index="${currentWordIndex}"]`);
+        if (currentWord) {
+          currentWord.dispatchEvent(new Event('toggleMeaning'));
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [words.length, currentWordIndex]);
+
+  // 传递给 WordCard 的新属性
+  const isCurrentWord = (index) => index === currentWordIndex;
+  const goToNextWord = () => {
+    setCurrentWordIndex(prev => Math.min(words.length - 1, prev + 1));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-900 to-blue-700">
       {/* 传入 visible 属性控制显示/隐藏 */}
@@ -175,11 +209,15 @@ const WordList = () => {
 
         {/* 单词列表 */}
         <div className="space-y-4">
-          {words.map(word => (
+          {words.map((word, index) => (
             <WordCard
               key={word.wid}
               word={word}
               onUpdateStatus={handleUpdateStatus}
+              isCurrent={isCurrentWord(index)}
+              onReviewComplete={goToNextWord}
+              onSelect={() => handleSelectWord(index)}
+              data-word-index={index}
             />
           ))}
         </div>
