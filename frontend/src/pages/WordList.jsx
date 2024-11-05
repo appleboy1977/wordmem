@@ -145,17 +145,39 @@ const WordList = () => {
     setCurrentWordIndex(index);
   };
 
-  // 添加键盘导航
+  // 修改键盘导航
   useEffect(() => {
     const handleKeyPress = (e) => {
       if (e.key === 'ArrowUp') {
-        setCurrentWordIndex(prev => Math.max(0, prev - 1));
+        e.preventDefault(); // 防止页面滚动
+        setCurrentWordIndex(prev => {
+          const newIndex = Math.max(0, prev - 1);
+          // 找到对应的卡片并滚动
+          const card = document.querySelector(`[data-word-index="${newIndex}"]`);
+          if (card) {
+            card.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center'  // 确保卡片在视口中央
+            });
+          }
+          return newIndex;
+        });
       } else if (e.key === 'ArrowDown') {
-        setCurrentWordIndex(prev => Math.min(words.length - 1, prev + 1));
+        e.preventDefault(); // 防止页面滚动
+        setCurrentWordIndex(prev => {
+          const newIndex = Math.min(words.length - 1, prev + 1);
+          // 找到对应的卡片并滚动
+          const card = document.querySelector(`[data-word-index="${newIndex}"]`);
+          if (card) {
+            card.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center'  // 确保卡片在视口中央
+            });
+          }
+          return newIndex;
+        });
       } else if (e.key === 'Enter' || e.key === ' ') {
-        // 阻止空格键滚动页面
         e.preventDefault();
-        // 触发当前单词的显示/隐藏释义
         const currentWord = document.querySelector(`[data-word-index="${currentWordIndex}"]`);
         if (currentWord) {
           currentWord.dispatchEvent(new Event('toggleMeaning'));
