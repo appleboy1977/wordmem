@@ -84,6 +84,8 @@ function getWordsToStudy(userId, limit, offset, testDate = null, callback) {
   });
 }
 
+const SCORE_THRESHOLD = 5; // 保留分数阈值, 于前端保持一致
+
 function getWordsToReview(userId, limit, offset, testDate = null, callback) {
   const dateParam = testDate || 'now';
   
@@ -119,7 +121,7 @@ function getWordsToReview(userId, limit, offset, testDate = null, callback) {
       LEFT JOIN study_records sr 
         ON w.wid = sr.wid 
         AND sr.user_id = ?
-      where sr.ldate is not NULL
+      where sr.ldate is not NULL and sr.score <= ?
       ORDER BY 
         priority DESC,
         level DESC,
@@ -134,6 +136,7 @@ function getWordsToReview(userId, limit, offset, testDate = null, callback) {
     dateParam,           // 用于计算优先级
     dateParam,           // 用于计算优先级
     userId,              // 用于ReviewGroup
+    SCORE_THRESHOLD,     // 用于ReviewGroup
     totalLimit,          // 最终限制
     offset || 0          // 偏移量
   ];

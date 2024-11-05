@@ -3,19 +3,26 @@ import WordCard from '../components/WordCard';
 import { getWords, updateWordStatus } from '../services/api';
 import FloatingStats from '../components/FloatingStats';
 
+// 添加复习状态常量
+const REVIEW_STATUS = {
+  KNOWN: 1,    // 认识
+  UNFAMILIAR: 0,  // 不熟悉
+  FORGET: -1   // 忘记了
+};
+
 const WordList = () => {
   const [words, setWords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
   const [totalWords, setTotalWords] = useState(0);
+  const [remainingWords, setRemainingWords] = useState(0);
   const [showStats, setShowStats] = useState(true);
   const [showFloatingStats, setShowFloatingStats] = useState(false);
   const [wordReviewCounts, setWordReviewCounts] = useState({});
-  const REVIEW_THRESHOLD = 5;  // 复习次数阈值
-  const SCORE_THRESHOLD = 0.8; // 分数阈值
+  const REVIEW_THRESHOLD = 3;  // 统一使用一个阈值
+  const SCORE_THRESHOLD = 5; // 保留分数阈值
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
+  const [wordStats, setWordStats] = useState({}); // 跟踪每个单词的状态
 
   // 目前单页不限制单词数量, 直到所有单词都复习完 （所有需要复习词汇 + 20个新词汇）
   // TODO - 需要优化： 单词量很大时，一次性加载太多单词，影响性能
@@ -23,23 +30,16 @@ const WordList = () => {
 
   useEffect(() => {
     fetchWords();
-  }, [page]);
+  }, []);
 
   const fetchWords = async () => {
     try {
       setLoading(true);
-      const response = await getWords(LIMIT, page * LIMIT);
-      
-      if (page === 0) {
-        setTotalWords(response.total || response.data.length);
-        setWords(response.data);
-      } else {
-        setWords(prev => [...prev, ...response.data]);
-      }
-      
-      if (response.data.length < LIMIT) {
-        setHasMore(false);
-      }
+      const response = await getWords();
+      const total = response.total || response.data.length;
+      setTotalWords(total);  // 设置总数（不再改变）
+      setRemainingWords(total);  // 设置初始剩余数
+      setWords(response.data);
     } catch (err) {
       console.error('获取单词列表失败:', err);
       setError('获取单词列表失败');
@@ -50,10 +50,25 @@ const WordList = () => {
 
   const handleUpdateStatus = async (wid, updates) => {
     try {
-      // 更新复习次数
-      setWordReviewCounts(prev => ({
+      // 更新单词统计
+      const currentStats = wordStats[wid] || { 
+        knownCount: 0, 
+        reviewCount: 0,
+        lastStatus: null 
+      };
+
+      const newStats = {
+        ...currentStats,
+        reviewCount: currentStats.reviewCount + 1,
+        knownCount: updates.status === REVIEW_STATUS.KNOWN 
+          ? currentStats.knownCount + 1 
+          : 0, // 如果不是"认识"，重置计数
+        lastStatus: updates.status
+      };
+
+      setWordStats(prev => ({
         ...prev,
-        [wid]: (prev[wid] || 0) + 1
+        [wid]: newStats
       }));
 
       // 调用 API 更新状态
@@ -71,10 +86,17 @@ const WordList = () => {
               ldate: new Date().toISOString()
             };
 
-            // 如果复习次数达到阈值且分数达标，1秒后移除该单词
-            if (wordReviewCounts[wid] >= REVIEW_THRESHOLD && updatedWord.score >= SCORE_THRESHOLD) {
+            // 简化移除条件：
+            // 1. 连续认识达到阈值
+            // 2. 或者总复习次数达到阈值且分数达标
+            const shouldRemove = 
+              (newStats.knownCount >= REVIEW_THRESHOLD) || // 连续认识3次
+              (newStats.reviewCount >= REVIEW_THRESHOLD && updatedWord.score >= SCORE_THRESHOLD); // 或者复习3次且分数达标
+
+            if (shouldRemove) {
               setTimeout(() => {
                 setWords(prev => prev.filter(w => w.wid !== wid));
+                setRemainingWords(prev => prev - 1);  // 更新剩余数量
               }, 1000);
             }
 
@@ -91,19 +113,16 @@ const WordList = () => {
     }
   };
 
-  const loadMore = () => {
-    if (!loading && hasMore) {
-      setPage(prev => prev + 1);
-    }
-  };
+  // 计算完成率
+  const completionRate = totalWords > 0 
+    ? Math.round(((totalWords - remainingWords) / totalWords) * 100) 
+    : 0;
 
-  // 计算统计数据
+  // 传递给 FloatingStats 的数据
   const stats = {
-    totalWords: totalWords,
-    remaining: words.length,
-    completionRate: totalWords > 0 
-      ? Math.round(((totalWords - words.length) / totalWords) * 100) 
-      : 0
+    totalWords,
+    remaining: remainingWords,
+    completionRate
   };
 
   // 修改滚动监听逻辑
@@ -173,12 +192,12 @@ const WordList = () => {
               <div className="text-blue-200 text-sm">今日单词</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold mb-1 text-yellow-400">{words.length}</div>
+              <div className="text-3xl font-bold mb-1 text-yellow-400">{remainingWords}</div>
               <div className="text-blue-200 text-sm">待复习</div>
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold mb-1 text-green-400">
-                {totalWords > 0 ? Math.round(((totalWords - words.length) / totalWords) * 100) : 0}%
+                {completionRate}%
               </div>
               <div className="text-blue-200 text-sm">完成率</div>
             </div>
@@ -189,7 +208,7 @@ const WordList = () => {
             <div 
               className="bg-gradient-to-r from-green-400 to-blue-400 h-3 rounded-full transition-all duration-500"
               style={{ 
-                width: `${totalWords > 0 ? ((totalWords - words.length) / totalWords) * 100 : 0}%` 
+                width: `${completionRate}%` 
               }}
             ></div>
           </div>
@@ -218,6 +237,8 @@ const WordList = () => {
               onReviewComplete={goToNextWord}
               onSelect={() => handleSelectWord(index)}
               data-word-index={index}
+              stats={wordStats[word.wid] || { knownCount: 0, reviewCount: 0 }}
+              thresholds={{ REVIEW_THRESHOLD, SCORE_THRESHOLD }}
             />
           ))}
         </div>
@@ -226,20 +247,6 @@ const WordList = () => {
         {loading && (
           <div className="flex justify-center my-8">
             <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
-          </div>
-        )}
-
-        {/* 加载更多按钮 */}
-        {!loading && hasMore && words.length > 0 && (
-          <div className="text-center mt-8">
-            <button 
-              className="px-8 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full
-                         font-semibold transition-colors duration-200 shadow-lg
-                         hover:shadow-blue-500/25"
-              onClick={loadMore}
-            >
-              加载更多单词
-            </button>
           </div>
         )}
 

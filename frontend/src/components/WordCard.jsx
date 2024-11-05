@@ -47,7 +47,8 @@ const StarRatingPopup = ({ level, onRate, onClose }) => {
   );
 };
 
-const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect }) => {
+const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect, stats, thresholds }) => {
+  const { REVIEW_THRESHOLD, SCORE_THRESHOLD } = thresholds;
   const [showMeaning, setShowMeaning] = useState(false);
   const [note, setNote] = useState(word.note || '');
   const [level, setLevel] = useState(word.level || 0);
@@ -176,37 +177,41 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect 
     );
   };
 
-  // 修改音频播放功能
+  // 修改音频播放功能，只在当前卡片时播放
   const playPronunciation = () => {
-    if (word.audio) {
-      // 如果已有正在播放的音频,先停止它
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
+    if (!isCurrent || !word.audio) return; // 只在当前卡片且有音频时播放
 
-      const prefix = 'https://www.oxfordlearnersdictionaries.com/';
-      const audio_url = prefix + word.audio;
-      
-      // 创建新的音频实例并保存引用
-      const audio = new Audio(audio_url);
-      audioRef.current = audio;
-      
-      audio.play().catch(error => {
-        console.error('播放音频失败:', error);
-      });
+    // 如果已有正在播放的音频,先停止它
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+
+    const prefix = 'https://www.oxfordlearnersdictionaries.com/';
+    const audio_url = prefix + word.audio;
+    
+    // 创建新的音频实例并保存引用
+    const audio = new Audio(audio_url);
+    audioRef.current = audio;
+    
+    audio.play().catch(error => {
+      console.error('播放音频失败:', error);
+    });
+  };
+
+  // 修改鼠标悬停处理
+  const handleWordHover = () => {
+    if (isCurrent) {  // 只在当前卡片时播放
+      playPronunciation();
     }
   };
 
-  // 添加鼠标事件处理
-  const handleWordHover = () => {
-    playPronunciation();
-  };
-
-  // 合并单词点击功能
+  // 修改单词点击功能
   const handleWordClick = () => {
-    playPronunciation();
-    toggleMeaning();
+    if (isCurrent) {  // 只在当前卡片时播放
+      playPronunciation();
+      toggleMeaning();
+    }
   };
 
   // 处理笔记变化
@@ -302,14 +307,18 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect 
       onMouseLeave={handleMouseLeave}
     >
       <div className="card-body relative p-4">
-        {word.reviewed && (
-          <div className="absolute top-2 right-2 text-green-500 text-sm flex items-center gap-1">
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-            </svg>
-            已复习
-          </div>
-        )}
+        {/* 添加复习次数显示 */}
+        <div className="absolute top-2 right-2 flex items-center gap-2">
+          {word.reviewed && (
+            <div className="text-green-500 text-sm flex items-center gap-1">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+              </svg>
+              已复习
+            </div>
+          )}
+
+        </div>
 
         {/* 标题区域 - 移动端优化 */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
@@ -356,11 +365,21 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect 
                 </span>
               </div>
             )}
+
+
           </div>
 
           {/* 评分和统计息 - 移动端隐藏部分信息 */}
           <div className="flex flex-wrap items-center gap-2 text-xs">
             {renderLevelDisplay()}
+            <span className="sm:inline text-gray-400">
+              复习次数: {stats.reviewCount}
+            </span>
+            {stats.knownCount > 0 && (
+              <span className="text-green-500 sm:inline">
+                ✓{stats.knownCount}
+              </span>
+            )}
             <span className="sm:inline text-gray-400">
               score: {(word.score || 0).toFixed(1)}
             </span>
@@ -390,7 +409,7 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect 
                 type="text"
                 value={note}
                 onChange={handleNoteChange}
-                className="w-full p-2 bg-transparent outline-none text-sm text-gray-500" 
+                className="w-full p-2 bg-transparent outline-none font-bold text-lg text-red-500" 
                 placeholder="..."
               />
 
