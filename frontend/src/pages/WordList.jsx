@@ -95,8 +95,18 @@ const WordList = () => {
 
             if (shouldRemove) {
               setTimeout(() => {
-                setWords(prev => prev.filter(w => w.wid !== wid));
-                setRemainingWords(prev => prev - 1);  // 更新剩余数量
+                setWords(prev => {
+                  // 找到要移除的单词的索引
+                  const removeIndex = prev.findIndex(w => w.wid === wid);
+                  // 移除该单词
+                  const newWords = prev.filter(w => w.wid !== wid);
+                  // 如果移除的是当前单词，将当前索引设置为下一个单词
+                  if (removeIndex === currentWordIndex) {
+                    setCurrentWordIndex(Math.min(removeIndex, newWords.length - 1));
+                  }
+                  setRemainingWords(prev => prev - 1);
+                  return newWords;
+                });
               }, 1000);
             }
 
