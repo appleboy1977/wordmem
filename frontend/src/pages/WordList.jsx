@@ -186,7 +186,7 @@ const WordList = () => {
           }
           return newIndex;
         });
-      } else if (e.key === 'Enter' || e.key === ' ') {
+      } else if (e.key === 'Enter') {
         e.preventDefault();
         const currentWord = document.querySelector(`[data-word-index="${currentWordIndex}"]`);
         if (currentWord) {

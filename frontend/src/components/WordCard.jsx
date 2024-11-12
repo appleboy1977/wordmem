@@ -402,6 +402,48 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect,
         `}>
           <p className="text-base sm:text-lg text-gray-700">{word.explain}</p>
           
+          {/* 添加例句部分 */}
+          {word.examples && (
+            <div className="mt-4 space-y-2">
+              <h3 className="text-sm font-medium text-gray-500">例句:</h3>
+              <div className="max-h-[120px] overflow-y-auto">
+                <ul className="space-y-3">
+                  {JSON.parse(word.examples).map((example, index) => {
+                    // 处理单词或短语的高亮
+                    const highlightWord = (text, word) => {
+                      const words = word.split(' '); // 将短语分割成单词数组
+                      let highlightedText = text;
+                      
+                      words.forEach(w => {
+                        const regex = new RegExp(`(${w})`, 'gi');
+                        highlightedText = highlightedText.replace(
+                          regex, 
+                          '<span class="font-bold border-b-2 border-blue-400">$1</span>'
+                        );
+                      });
+                      
+                      return highlightedText;
+                    };
+
+                    return (
+                      <li 
+                        key={index}
+                        className="pl-4 border-l-2 border-blue-200"
+                      >
+                        <div 
+                          dangerouslySetInnerHTML={{ 
+                            __html: highlightWord(example, word.word)
+                          }}
+                          className="text-gray-700"
+                        />
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </div>
+          )}
+
           {/* 只在当前卡片显示输入框和按钮 */}
           {isCurrent && (
             <>
