@@ -306,7 +306,15 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect,
   const handleExclude = async (e) => {
     e.stopPropagation(); // 阻止事件冒泡
     if (window.confirm('确定要将这个单词移除吗？这个单词将不会再出现在复习列表中。')) {
-      await onExclude(word.wid);
+      try {
+        await onExclude(word.wid);
+        // 移除后自动切换到下一个单词
+        if (isCurrent) {
+          onReviewComplete();
+        }
+      } catch (error) {
+        console.error('移除单词失败:', error);
+      }
     }
   };
 
@@ -418,16 +426,18 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect,
           mt-4 space-y-4 overflow-hidden transition-all duration-300 ease-in-out
           ${(showMeaning && isCurrent) ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}
         `}>
-          {/* 添加回收按钮到展开区域顶部 */}
+          {/* 添加回收按钮到展开区域顶部，只在非新词时显示 */}
           <div className="flex justify-end">
-            <button
-              onClick={handleExclude}
-              className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50 flex items-center gap-1"
-              title="移除这个单词"
-            >
-              <RecycleIcon />
-              <span className="text-sm">移除</span>
-            </button>
+            {word.word_group !== 'study' && (
+              <button
+                onClick={handleExclude}
+                className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50 flex items-center gap-1"
+                title="移除这个单词"
+              >
+                <RecycleIcon />
+                <span className="text-sm">移除</span>
+              </button>
+            )}
           </div>
 
           <p className="text-base sm:text-lg text-gray-700">{word.explain}</p>
