@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import WordCard from '../components/WordCard';
-import { getWords, updateWordStatus, excludeWord } from '../services/api';
-import FloatingStats from '../components/FloatingStats';
+import React, { useEffect, useState } from 'react';
 import AddWordForm from '../components/AddWordForm';
+import FloatingStats from '../components/FloatingStats';
+import WordCard from '../components/WordCard';
+import { excludeWord, getWords, updateWordStatus } from '../services/api';
 
 // 添加复习状态常量
 const REVIEW_STATUS = {
@@ -26,6 +26,9 @@ const WordList = () => {
   const [wordStats, setWordStats] = useState({}); // 跟踪每个单词的状态
   const [showAddForm, setShowAddForm] = useState(false);
   const [success, setSuccess] = useState(null);
+  const [timer, setTimer] = useState(0);
+  const [timerActive, setTimerActive] = useState(false);
+  const QUICK_RESPONSE_TIME = 5; // 5秒快速响应阈值
 
   // 目前单页不限制单词数量, 直到所有单词都复习完 （所有需要复习词汇 + 20个新词汇）
   // TODO - 需要优化： 单词量很大时，一次性加载太多单词，影响性能
@@ -53,11 +56,14 @@ const WordList = () => {
 
   const handleUpdateStatus = async (wid, updates) => {
     try {
-      // 更新单词统计
+      setTimerActive(false); // 停止计时
+      const responseTime = timer; // 获取响应时间
+      
       const currentStats = wordStats[wid] || { 
         knownCount: 0, 
         reviewCount: 0,
-        lastStatus: null 
+        lastStatus: null,
+        isFirstAttempt: true // 添加首次尝试标记
       };
 
       const newStats = {
@@ -66,7 +72,8 @@ const WordList = () => {
         knownCount: updates.status === REVIEW_STATUS.KNOWN 
           ? currentStats.knownCount + 1 
           : 0, // 如果不是"认识"，重置计数
-        lastStatus: updates.status
+        lastStatus: updates.status,
+        isFirstAttempt: false
       };
 
       setWordStats(prev => ({
@@ -92,9 +99,13 @@ const WordList = () => {
             // 简化移除条件：
             // 1. 连续认识达到阈值
             // 2. 或者总复习次数达到阈值且分数达标
+            // 3. 快速响应判断
             const shouldRemove = 
               (newStats.knownCount >= REVIEW_THRESHOLD) || // 连续认识3次
-              (newStats.reviewCount >= REVIEW_THRESHOLD && updatedWord.score >= SCORE_THRESHOLD); // 或者复习3次且分数达标
+              (newStats.reviewCount >= REVIEW_THRESHOLD && updatedWord.score >= SCORE_THRESHOLD) || // 或者复习3次且分数达标
+              (currentStats.isFirstAttempt && // 首次尝试
+               updates.status === REVIEW_STATUS.KNOWN && // 且认识
+               responseTime <= QUICK_RESPONSE_TIME); // 且响应时间小于5秒
 
             if (shouldRemove) {
               setTimeout(() => {
@@ -131,11 +142,12 @@ const WordList = () => {
     ? Math.round(((totalWords - remainingWords) / totalWords) * 100) 
     : 0;
 
-  // 传递给 FloatingStats 的数据
+  // 修改传递给 FloatingStats 的数据
   const stats = {
     totalWords,
     remaining: remainingWords,
-    completionRate
+    completionRate,
+    timer: timerActive ? timer : null // 添加计时器状态
   };
 
   // 修改滚动监听逻辑
@@ -156,6 +168,8 @@ const WordList = () => {
   // 添加选择当前单词的处理函数
   const handleSelectWord = (index) => {
     setCurrentWordIndex(index);
+    setTimer(0); // 重置计时器
+    setTimerActive(true); // 开始计时
   };
 
   // 修改键盘导航
@@ -224,10 +238,21 @@ const WordList = () => {
     }
   };
 
+  // 添加计时器效果
+  useEffect(() => {
+    let interval;
+    if (timerActive) {
+      interval = setInterval(() => {
+        setTimer(prev => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timerActive]);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-900 to-blue-700">
-      {/* 传入 visible 属性控制显示/隐藏 */}
-      <FloatingStats stats={stats} visible={showFloatingStats} />
+      {/* 移除 visible 属性 */}
+      <FloatingStats stats={stats} />
       
       <div className="container mx-auto px-4 py-8">
         <div className="text-center mb-8">
@@ -298,9 +323,14 @@ const WordList = () => {
               onReviewComplete={goToNextWord}
               onSelect={() => handleSelectWord(index)}
               data-word-index={index}
-              stats={wordStats[word.wid] || { knownCount: 0, reviewCount: 0 }}
+              stats={wordStats[word.wid] || { 
+                knownCount: 0, 
+                reviewCount: 0, 
+                isFirstAttempt: true 
+              }}
               thresholds={{ REVIEW_THRESHOLD, SCORE_THRESHOLD }}
               onExclude={handleExcludeWord}
+              timer={isCurrentWord(index) ? timer : 0} // 传递计时器状态
             />
           ))}
         </div>

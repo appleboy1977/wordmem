@@ -73,6 +73,7 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect,
     if (isCurrent && cardRef.current) {
       cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
       playPronunciation();
+      onSelect(); // 立即触发选择事件，开始计时
     }
   }, [isCurrent]);
 
@@ -280,7 +281,10 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect,
     ) {
       return;
     }
-    onSelect();
+    // 只有在非当前卡片时才触发选择
+    if (!isCurrent) {
+      onSelect();
+    }
   };
 
   // 添加键盘控制

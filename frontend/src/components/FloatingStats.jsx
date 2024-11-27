@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 // 新建一个浮动状态卡片组件
-const FloatingStats = ({ stats, visible }) => {
+const FloatingStats = ({ stats }) => {
   // 添加位置状态
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -56,7 +56,6 @@ const FloatingStats = ({ stats, visible }) => {
   return (
     <div 
       className={`fixed z-50 transition-opacity duration-300
-        ${visible ? 'opacity-100' : 'opacity-0 pointer-events-none'} 
         ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
       style={{
         transform: `translate(${position.x}px, ${position.y}px)`,
@@ -84,6 +83,13 @@ const FloatingStats = ({ stats, visible }) => {
             <div className="text-xs text-gray-500">完成率</div>
           </div>
         </div>
+
+        {/* 添加计时器显示 */}
+        {stats.timer !== null && (
+          <div className="text-center mt-2 text-xs text-gray-500">
+            用时：{stats.timer}秒
+          </div>
+        )}
 
         <div className="w-full bg-gray-100 rounded-full h-1.5 mt-2">
           <div 
