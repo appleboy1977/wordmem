@@ -55,11 +55,11 @@ const FloatingStats = ({ stats }) => {
 
   return (
     <div 
-      className={`fixed z-50 transition-opacity duration-300
+      className={`fixed z-50 transition-opacity duration-300 right-[20%] top-4
         ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
       style={{
         transform: `translate(${position.x}px, ${position.y}px)`,
-        touchAction: 'none' // 防止触摸设备上的滚动干扰
+        touchAction: 'none'
       }}
       onMouseDown={handleDragStart}
     >
@@ -82,14 +82,13 @@ const FloatingStats = ({ stats }) => {
             <div className="font-semibold text-green-500">{stats.completionRate}%</div>
             <div className="text-xs text-gray-500">完成率</div>
           </div>
+          {stats.timer !== null && (
+            <div className="text-center">
+              <div className="font-semibold text-gray-600">{stats.timer}</div>
+              <div className="text-xs text-gray-500">秒</div>
+            </div>
+          )}
         </div>
-
-        {/* 添加计时器显示 */}
-        {stats.timer !== null && (
-          <div className="text-center mt-2 text-xs text-gray-500">
-            用时：{stats.timer}秒
-          </div>
-        )}
 
         <div className="w-full bg-gray-100 rounded-full h-1.5 mt-2">
           <div 
