@@ -20,3 +20,28 @@ export const updateWordStatus = async (wid, updates) => {
     ...updates  // 包含 status, note, level 等字段
   });
 };
+
+export const searchWords = async (query) => {
+  try {
+    const response = await axios.get(`/words/search?query=${encodeURIComponent(query)}`);
+    return response.data;
+  } catch (error) {
+    console.error('搜索单词失败:', error);
+    throw error;
+  }
+};
+
+export const addWord = async (wordData) => {
+  try {
+    const response = await axios.post('/words/add', wordData);
+    return response.data;
+  } catch (error) {
+    console.error('添加单词失败:', error);
+    throw error;
+  }
+};
+
+export const excludeWord = async (wid) => {
+  const response = await axios.post(`words/${wid}/exclude`);
+  return response.data;
+};

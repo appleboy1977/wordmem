@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
+const { generateWid, getPosId } = require('../services/utility');
 
 const dbPath = path.resolve(__dirname, '../../../wordmem.db');
 const jsonPath = path.resolve(__dirname, '../../../tool/yibo519.json');
@@ -12,28 +13,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
   console.log('Database connected');
 });
-
-// 将词性转换为pos_id
-function getPosId(pos) {
-  pos = pos.toLowerCase();
-  if (pos.includes('verb') || pos.includes('v.')) return 'v';
-  if (pos.includes('noun') || pos.includes('n.')) return 'n';
-  if (pos.includes('adj') || pos.includes('adj.')) return 'x';
-  if (pos.includes('adv') || pos.includes('adv.')) return 'f';
-  if (pos.includes('conj') || pos.includes('conjunction')) return 'c';
-  if (pos.includes('pron') || pos.includes('pronoun')) return 'd';
-  if (pos.includes('prep') || pos.includes('preposition')) return 'j';
-  if (pos.includes('phr') || pos.includes('phrasal')) return 'p';
-  return 'o'; // other
-}
-
-// 处理单词ID
-function generateWid(word, pos) {
-  // 替换空格为下划线
-  const normalizedWord = word.trim().replace(/\s+/g, '_');
-  const posId = getPosId(pos);
-  return `${normalizedWord}~${posId}`;
-}
 
 // 解码 UTF-8 编码的文本
 function decodeUTF8(text) {
@@ -47,7 +26,6 @@ function decodeUTF8(text) {
     return text;
   }
 }
-
 async function importWords() {
   try {
     // 读取JSON文件

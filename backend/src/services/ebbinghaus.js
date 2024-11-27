@@ -85,7 +85,8 @@ function getWordsToStudy(userId, limit, offset, testDate = null, callback) {
   });
 }
 
-const SCORE_THRESHOLD = 5; // 保留分数阈值, 于前端保持一致
+// give it a high score threshold to avoid filter out history words - previous = 5
+const SCORE_THRESHOLD = 5000; 
 
 function getWordsToReview(userId, limit, offset, testDate = null, callback) {
   const dateParam = testDate || 'now';
@@ -123,7 +124,9 @@ function getWordsToReview(userId, limit, offset, testDate = null, callback) {
       LEFT JOIN study_records sr 
         ON w.wid = sr.wid 
         AND sr.user_id = ?
-      where sr.ldate is not NULL and sr.score <= ?
+      where  (sr.excluded = FALSE OR sr.excluded IS NULL) 
+            and sr.ldate is not NULL 
+            and sr.score <= ?
       ORDER BY 
         priority DESC,
         level DESC,
@@ -175,7 +178,7 @@ async function getCombinedWords(userId, limit, offset, testDate = null, callback
       });
     });
 
-    const newLimit = 20;
+    const newLimit = 40;
     const wordsToStudy = await new Promise((resolve, reject) => {
       getWordsToStudy(userId, newLimit, offset, testDate, (err, words) => {
         if (err) reject(err);

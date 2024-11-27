@@ -18,7 +18,8 @@ exports.login = (req, res) => {
       return res.status(400).json({ message: '用户名或密码错误' });
     }
 
-    const token = jwt.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    // 设置token过期时间为 10*24小时
+    const token = jwt.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET, { expiresIn: '240h' });
     res.json({ token });
   });
 };

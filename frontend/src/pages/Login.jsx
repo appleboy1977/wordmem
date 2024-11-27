@@ -5,13 +5,22 @@ import { login } from '../services/api';
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    // Clear any existing token on login page mount
-    localStorage.removeItem('token');
+    // 检查本地存储的凭据
+    const savedUsername = localStorage.getItem('username');
+    const savedToken = localStorage.getItem('token');
+    
+    if (savedUsername && savedToken) {
+      setUsername(savedUsername);
+      // 自动导航到主页
+      const from = location.state?.from?.pathname || '/words';
+      navigate(from, { replace: true });
+    }
   }, []);
 
   const handleSubmit = async (e) => {
@@ -21,6 +30,10 @@ const Login = () => {
     try {
       const response = await login(username, password);
       if (response.data?.token) {
+        // 如果选择了"记住我"，保存用户名和token
+        if (rememberMe) {
+          localStorage.setItem('username', username);
+        }
         localStorage.setItem('token', response.data.token);
         const from = location.state?.from?.pathname || '/words';
         navigate(from, { replace: true });
@@ -68,6 +81,19 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="flex items-center">
+            <input
+              id="remember-me"
+              type="checkbox"
+              className="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+            />
+            <label htmlFor="remember-me" className="ml-2 text-gray-600">
+              记住我
+            </label>
           </div>
 
           <div>

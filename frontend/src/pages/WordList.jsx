@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import WordCard from '../components/WordCard';
-import { getWords, updateWordStatus } from '../services/api';
+import { getWords, updateWordStatus, excludeWord } from '../services/api';
 import FloatingStats from '../components/FloatingStats';
+import AddWordForm from '../components/AddWordForm';
 
 // 添加复习状态常量
 const REVIEW_STATUS = {
@@ -23,6 +24,8 @@ const WordList = () => {
   const SCORE_THRESHOLD = 5; // 保留分数阈值
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [wordStats, setWordStats] = useState({}); // 跟踪每个单词的状态
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [success, setSuccess] = useState(null);
 
   // 目前单页不限制单词数量, 直到所有单词都复习完 （所有需要复习词汇 + 20个新词汇）
   // TODO - 需要优化： 单词量很大时，一次性加载太多单词，影响性能
@@ -205,6 +208,22 @@ const WordList = () => {
     setCurrentWordIndex(prev => Math.min(words.length - 1, prev + 1));
   };
 
+  // 添加处理排除单词的函数
+  const handleExcludeWord = async (wid) => {
+    try {
+      await excludeWord(wid);
+      // 从列表中移除该单词
+      setWords(prevWords => prevWords.filter(w => w.wid !== wid));
+      setRemainingWords(prev => prev - 1);
+      setSuccess('单词已成功移除');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      console.error('移除单词失败:', err);
+      setError('移除单词失败，请重试');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-900 to-blue-700">
       {/* 传入 visible 属性控制显示/隐藏 */}
@@ -214,6 +233,16 @@ const WordList = () => {
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">今日单词复习</h1>
           <p className="text-blue-200 text-lg">坚持每一天，成就更好的自己</p>
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="mt-4 px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-full 
+                      shadow-lg transform transition-all hover:scale-105 flex items-center mx-auto"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+            </svg>
+            添加新单词
+          </button>
         </div>
         
         {/* 给主统计卡片添加 stats-section 类名 */}
@@ -271,6 +300,7 @@ const WordList = () => {
               data-word-index={index}
               stats={wordStats[word.wid] || { knownCount: 0, reviewCount: 0 }}
               thresholds={{ REVIEW_THRESHOLD, SCORE_THRESHOLD }}
+              onExclude={handleExcludeWord}
             />
           ))}
         </div>
@@ -288,6 +318,23 @@ const WordList = () => {
             <div className="text-6xl mb-4">🎉</div>
             <h3 className="text-2xl font-bold text-white mb-2">太棒了！</h3>
             <p className="text-blue-200">今天的单词都复习完了，继续保持！</p>
+          </div>
+        )}
+
+        {showAddForm && (
+          <AddWordForm
+            onClose={() => setShowAddForm(false)}
+            onWordAdded={(newWord) => {
+              setShowAddForm(false);
+              setSuccess('单词添加成功！将在下次复习时出现。');
+              setTimeout(() => setSuccess(null), 3000);
+            }}
+          />
+        )}
+
+        {success && (
+          <div className="fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg">
+            {success}
           </div>
         )}
       </div>

@@ -47,7 +47,14 @@ const StarRatingPopup = ({ level, onRate, onClose }) => {
   );
 };
 
-const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect, stats, thresholds }) => {
+// 在文件顶部添加回收图标组件
+const RecycleIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+  </svg>
+);
+
+const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect, stats, thresholds, onExclude }) => {
   const { REVIEW_THRESHOLD, SCORE_THRESHOLD } = thresholds;
   const [showMeaning, setShowMeaning] = useState(false);
   const [note, setNote] = useState(word.note || '');
@@ -291,6 +298,14 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect,
     };
   }, [isCurrent]);
 
+  // 添加处理回收的函数
+  const handleExclude = async (e) => {
+    e.stopPropagation(); // 阻止事件冒泡
+    if (window.confirm('确定要将这个单词移除吗？这个单词将不会再出现在复习列表中。')) {
+      await onExclude(word.wid);
+    }
+  };
+
   return (
     <div 
       ref={cardRef}
@@ -307,8 +322,8 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect,
       onMouseLeave={handleMouseLeave}
     >
       <div className="card-body relative p-4">
-        {/* 添加复习次数显示 */}
-        <div className="absolute top-2 right-2 flex items-center gap-2">
+        {/* 移除右上角的回收图标 */}
+        <div className="absolute top-2 right-2">
           {word.reviewed && (
             <div className="text-green-500 text-sm flex items-center gap-1">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -317,7 +332,6 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect,
               已复习
             </div>
           )}
-
         </div>
 
         {/* 标题区域 - 移动端优化 */}
@@ -400,6 +414,18 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect,
           mt-4 space-y-4 overflow-hidden transition-all duration-300 ease-in-out
           ${(showMeaning && isCurrent) ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}
         `}>
+          {/* 添加回收按钮到展开区域顶部 */}
+          <div className="flex justify-end">
+            <button
+              onClick={handleExclude}
+              className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50 flex items-center gap-1"
+              title="移除这个单词"
+            >
+              <RecycleIcon />
+              <span className="text-sm">移除</span>
+            </button>
+          </div>
+
           <p className="text-base sm:text-lg text-gray-700">{word.explain}</p>
           
           {/* 添加例句部分 */}
