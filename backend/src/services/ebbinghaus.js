@@ -170,7 +170,7 @@ function getWordsToReview(userId, limit, offset, testDate = null, callback) {
 
 async function getCombinedWords(userId, limit, offset, testDate = null, callback) {
   try {
-    const reviewLimit = 9999999; //do not limit review words
+    const reviewLimit = 100; //do not limit review words
     const wordsToReview = await new Promise((resolve, reject) => {
       getWordsToReview(userId, reviewLimit, offset, testDate, (err, words) => {
         if (err) reject(err);
