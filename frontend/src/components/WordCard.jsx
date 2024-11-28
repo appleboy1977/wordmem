@@ -451,11 +451,19 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect,
                   {JSON.parse(word.examples).map((example, index) => {
                     // 处理单词或短语的高亮
                     const highlightWord = (text, word) => {
-                      const words = word.split(' '); // 将短语分割成单词数组
+                      // 分割单词，但排除省略号和特殊符号
+                      const words = word.split(/\s+/).filter(w => 
+                        !w.includes('...') && 
+                        !['(', ')', '[', ']', '{', '}'].includes(w)
+                      );
+                      
                       let highlightedText = text;
                       
                       words.forEach(w => {
-                        const regex = new RegExp(`(${w})`, 'gi');
+                        // 转义特殊字符
+                        const escapedWord = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        // 移除词边界限制，允许部分匹配
+                        const regex = new RegExp(`(${escapedWord})`, 'gi');
                         highlightedText = highlightedText.replace(
                           regex, 
                           '<span class="font-bold border-b-2 border-blue-400">$1</span>'
