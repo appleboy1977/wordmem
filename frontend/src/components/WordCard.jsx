@@ -54,6 +54,18 @@ const RecycleIcon = () => (
   </svg>
 );
 
+// 在组件顶部添加音效引用
+const correctSound = new Audio('/sounds/correct.mp3');
+const wrongSound = new Audio('/sounds/error.mp3');
+
+// 预加载音效
+correctSound.load();
+wrongSound.load();
+
+// 在组件顶部设置音效音量
+correctSound.volume = 0.5;  // 设置为50%音量
+wrongSound.volume = 0.9;    // 设置为90%音量
+
 const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect, stats, thresholds, onExclude }) => {
   const { REVIEW_THRESHOLD, SCORE_THRESHOLD } = thresholds;
   const [showMeaning, setShowMeaning] = useState(false);
@@ -101,6 +113,17 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect,
 
     setIsReviewing(true);
     setReviewCount(prev => prev + 1);
+
+    // 播放音效
+    try {
+      if (status === REVIEW_STATUS.KNOWN) {
+        await correctSound.play();
+      } else if (status === REVIEW_STATUS.FORGET) {
+        await wrongSound.play();
+      }
+    } catch (error) {
+      console.error('播放音效失败:', error);
+    }
 
     // 状态动画
     const animations = {
@@ -412,12 +435,12 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect,
             <span className="sm:inline text-gray-400">
               days: {(word.days_diff || 0).toFixed(2)}
             </span>
-            <span className="sm:inline text-gray-400">
+            {/* <span className="sm:inline text-gray-400">
               re: {(word.retention_rate || 0).toFixed(2)}
             </span>
             <span className="sm:inline text-gray-400">
               p: {(word.priority || 0).toFixed(2)} 
-            </span>
+            </span> */}
           </div>
         </div>
         
@@ -428,6 +451,7 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect,
         `}>
           {/* 添加回收按钮到展开区域顶部，只在非新词时显示 */}
           <div className="flex justify-end">
+            <p className="text-base sm:text-lg text-gray-700">{word.explain}</p>
             {word.word_group !== 'study' && (
               <button
                 onClick={handleExclude}
@@ -440,8 +464,68 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect,
             )}
           </div>
 
-          <p className="text-base sm:text-lg text-gray-700">{word.explain}</p>
-          
+          {/* 只在当前卡片显示输入框和按钮 */}
+          {isCurrent && (
+            <>
+              <input 
+                type="text"
+                value={note}
+                onChange={handleNoteChange}
+                className="w-full p-2 bg-transparent outline-none font-bold text-lg text-red-500" 
+                placeholder="..."
+              />
+
+              <div className="flex flex-row justify-center gap-2">
+                <button
+                  data-status={REVIEW_STATUS.KNOWN}
+                  onClick={() => handleStatusUpdate(REVIEW_STATUS.KNOWN)}
+                  disabled={isReviewing}
+                  className={`
+                    px-4 py-3 sm:py-2 rounded-lg flex-1 
+                    transition-all duration-300
+                    bg-gray-50 hover:bg-green-50 
+                    text-gray-700 hover:text-green-700
+                    border border-gray-200 hover:border-green-200
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                  `}
+                >
+                  认识 👍
+                </button>
+                {/* <button
+                  data-status={REVIEW_STATUS.UNFAMILIAR}
+                  onClick={() => handleStatusUpdate(REVIEW_STATUS.UNFAMILIAR)}
+                  disabled={isReviewing}
+                  className={`
+                    px-4 py-3 sm:py-2 rounded-lg flex-1 
+                    transition-all duration-300
+                    bg-gray-50 hover:bg-yellow-50 
+                    text-gray-700 hover:text-yellow-700
+                    border border-gray-200 hover:border-yellow-200
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                    invisible
+                  `}
+                >
+                  不熟悉 
+                </button> */}
+                <button
+                  data-status={REVIEW_STATUS.FORGET}
+                  onClick={() => handleStatusUpdate(REVIEW_STATUS.FORGET)}
+                  disabled={isReviewing}
+                  className={`
+                    px-4 py-3 sm:py-2 rounded-lg flex-1 
+                    transition-all duration-300
+                    bg-gray-50 hover:bg-red-50 
+                    text-gray-700 hover:text-red-700
+                    border border-gray-200 hover:border-red-200
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                  `}
+                >
+                  忘记 😅
+                </button>
+              </div>
+            </>
+          )}
+
           {/* 添加例句部分 */}
           {word.examples && (
             <div className="mt-4 space-y-2">
@@ -490,67 +574,6 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect,
                 </ul>
               </div>
             </div>
-          )}
-
-          {/* 只在当前卡片显示输入框和按钮 */}
-          {isCurrent && (
-            <>
-              <input 
-                type="text"
-                value={note}
-                onChange={handleNoteChange}
-                className="w-full p-2 bg-transparent outline-none font-bold text-lg text-red-500" 
-                placeholder="..."
-              />
-
-              <div className="flex flex-col sm:flex-row justify-center gap-2">
-                <button
-                  data-status={REVIEW_STATUS.KNOWN}
-                  onClick={() => handleStatusUpdate(REVIEW_STATUS.KNOWN)}
-                  disabled={isReviewing}
-                  className={`
-                    px-4 py-3 sm:py-2 rounded-lg flex-1 
-                    transition-all duration-300
-                    bg-gray-50 hover:bg-green-50 
-                    text-gray-700 hover:text-green-700
-                    border border-gray-200 hover:border-green-200
-                    disabled:opacity-50 disabled:cursor-not-allowed
-                  `}
-                >
-                  认识 👍
-                </button>
-                <button
-                  data-status={REVIEW_STATUS.UNFAMILIAR}
-                  onClick={() => handleStatusUpdate(REVIEW_STATUS.UNFAMILIAR)}
-                  disabled={isReviewing}
-                  className={`
-                    px-4 py-3 sm:py-2 rounded-lg flex-1 
-                    transition-all duration-300
-                    bg-gray-50 hover:bg-yellow-50 
-                    text-gray-700 hover:text-yellow-700
-                    border border-gray-200 hover:border-yellow-200
-                    disabled:opacity-50 disabled:cursor-not-allowed
-                  `}
-                >
-                  不熟悉 
-                </button>
-                <button
-                  data-status={REVIEW_STATUS.FORGET}
-                  onClick={() => handleStatusUpdate(REVIEW_STATUS.FORGET)}
-                  disabled={isReviewing}
-                  className={`
-                    px-4 py-3 sm:py-2 rounded-lg flex-1 
-                    transition-all duration-300
-                    bg-gray-50 hover:bg-red-50 
-                    text-gray-700 hover:text-red-700
-                    border border-gray-200 hover:border-red-200
-                    disabled:opacity-50 disabled:cursor-not-allowed
-                  `}
-                >
-                  忘记 😅
-                </button>
-              </div>
-            </>
           )}
         </div>
       </div>

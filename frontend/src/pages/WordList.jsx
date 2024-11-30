@@ -145,6 +145,7 @@ const WordList = () => {
   // 修改传递给 FloatingStats 的数据
   const stats = {
     totalWords,
+    current: currentWordIndex + 1, // 添加当前索引（+1 使其从1开始计数）
     remaining: remainingWords,
     completionRate,
     timer: timerActive ? timer : null // 添加计时器状态
@@ -252,7 +253,16 @@ const WordList = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-900 to-blue-700">
       {/* 移除 visible 属性 */}
-      <FloatingStats stats={stats} />
+      <FloatingStats 
+        stats={stats} 
+        onSelectWord={(index) => {
+          setCurrentWordIndex(index);
+          const card = document.querySelector(`[data-word-index="${index}"]`);
+          if (card) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }} 
+      />
       
       <div className="container mx-auto px-4 py-8">
         <div className="text-center mb-8">

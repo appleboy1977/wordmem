@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 // 新建一个浮动状态卡片组件
-const FloatingStats = ({ stats }) => {
+const FloatingStats = ({ stats, onSelectWord }) => {
   // 添加位置状态
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -66,7 +66,7 @@ const FloatingStats = ({ stats }) => {
 
 
       {/* 主卡片 */}
-      <div className={`bg-white/95 backdrop-blur-sm shadow-lg rounded-lg p-3 w-48
+      <div className={`bg-white/95 backdrop-blur-sm shadow-lg rounded-lg p-3 w-56
         border border-blue-100 transition-all duration-300 
         hover:shadow-xl ${isDragging ? '' : 'animate-slideIn'}`}>
         <div className="flex justify-between items-center">
@@ -75,7 +75,23 @@ const FloatingStats = ({ stats }) => {
             <div className="text-xs text-gray-500">今日单词</div>
           </div>
           <div className="text-center">
-            <div className="font-semibold text-yellow-500">{stats.remaining}</div>
+            <div className="font-semibold text-yellow-500 flex items-center gap-1">
+              {stats.current}/{stats.remaining}
+              {stats.current === stats.remaining && (
+                <button 
+                  onClick={() => {
+                    setPosition({ x: 0, y: 0 });  // 重置浮动卡片位置
+                    onSelectWord(0);  // 调用父组件传入的选择函数
+                  }}
+                  className="text-gray-400 hover:text-blue-500 transition-colors"
+                  title="返回第一个单词"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                  </svg>
+                </button>
+              )}
+            </div>
             <div className="text-xs text-gray-500">待复习</div>
           </div>
           <div className="text-center">
