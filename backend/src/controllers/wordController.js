@@ -1,6 +1,7 @@
 const db = require('../config/database');
 const { getCombinedWords, recordWordStatus } = require('../services/ebbinghaus');
 const { generateWid, getPosId } = require('../services/utility');
+const { createLog, ACTION_TYPES } = require('../services/studyLog');
 
 const getWords = (req, res) => {
   const userId = req.user.id;
@@ -13,6 +14,11 @@ const getWords = (req, res) => {
       console.error('获取单词列表失败:', err);
       return res.status(500).json({ message: '服务器错误' });
     }
+
+    //get a list of words concat with comma
+    const wordsString = words.map(word => word.word).join(',');
+    console.log("get wordsString: ", wordsString);
+    
     res.json(words);
   });
 };
@@ -20,7 +26,7 @@ const getWords = (req, res) => {
 const updateWordStatus = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { wid, status, note, level } = req.body;
+    const { wid, status, note, level, elapsedTime, reviewCount } = req.body;
     console.log("updating Word with: ", req.body);
     const updates = {};
     
@@ -75,6 +81,15 @@ const updateWordStatus = async (req, res) => {
       ...updates,
       note: word.note,
       level: word.level
+    });
+
+    await createLog({
+      userId,
+      wid,
+      actionType: ACTION_TYPES.REVIEW,
+      status,
+      elapsedTime: elapsedTime,
+      reviewCount: reviewCount
     });
 
   } catch (err) {
@@ -194,6 +209,12 @@ const addWord = async (req, res) => {
         data: { wid, word, pos, explain, level, note }
       });
 
+      await createLog({
+        userId,
+        wid,
+        actionType: ACTION_TYPES.ADD
+      });
+
     } catch (err) {
       // 回滚事务
       await new Promise(resolve => {
@@ -236,6 +257,12 @@ const excludeWord = async (req, res) => {
     res.json({
       success: true,
       message: '单词已成功排除'
+    });
+
+    await createLog({
+      userId,
+      wid,
+      actionType: ACTION_TYPES.RECYCLE
     });
   } catch (error) {
     console.error('排除单词失败:', error);

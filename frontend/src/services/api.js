@@ -17,7 +17,7 @@ export const getWords = async (limit, offset) => {
 export const updateWordStatus = async (wid, updates) => {
   return await axios.post('/words/status', {
     wid,
-    ...updates  // 包含 status, note, level 等字段
+    ...updates  // updates 对象中包含 status, note, level, elapsedTime, reviewCount 等字段
   });
 };
 

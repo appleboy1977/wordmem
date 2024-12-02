@@ -66,7 +66,7 @@ wrongSound.load();
 correctSound.volume = 0.5;  // 设置为50%音量
 wrongSound.volume = 0.9;    // 设置为90%音量
 
-const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect, stats, thresholds, onExclude }) => {
+const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect, stats, thresholds, onExclude, timer }) => {
   const { REVIEW_THRESHOLD, SCORE_THRESHOLD } = thresholds;
   const [showMeaning, setShowMeaning] = useState(false);
   const [note, setNote] = useState(word.note || '');
@@ -136,12 +136,17 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect,
     const button = cardRef.current.querySelector(`[data-status="${status}"]`);
     button.classList.add(...animations[status].split(' '));
 
-    // 更新状态
-    await onUpdateStatus(word.wid, {
+    // 构建 updates 对象
+    const updates = {
       status,
       note,
-      level
-    });
+      level,
+      elapsedTime: timer, 
+      reviewCount: reviewCount
+    };
+
+    // 更新状态
+    await onUpdateStatus(word.wid, updates);
 
     // 5秒后重置
     setTimeout(() => {
@@ -150,7 +155,7 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect,
     }, 5000);
 
     // 检查是否达到移除条件
-    if (reviewCount >= 4 && word.score >= SCORE_THRESHOLD) {
+    if (reviewCount >= REVIEW_THRESHOLD && word.score >= SCORE_THRESHOLD) {
       setTimeout(() => {
         cardRef.current.classList.add('scale-0', 'opacity-0');
         setTimeout(() => onReviewComplete(), 300);

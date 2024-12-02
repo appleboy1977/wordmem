@@ -48,6 +48,16 @@ function initDatabase() {
     PRIMARY KEY (wid, user_id)
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS study_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    wid TEXT NOT NULL,
+    action_type TEXT NOT NULL,
+    status INTEGER,
+    elapsed_time INTEGER,
+    review_count INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
   // 插入初始管理员用户
   const bcrypt = require('bcryptjs');
   const hashedPassword = bcrypt.hashSync('admin', 10);

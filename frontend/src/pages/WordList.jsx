@@ -20,8 +20,6 @@ const WordList = () => {
   const [showStats, setShowStats] = useState(true);
   const [showFloatingStats, setShowFloatingStats] = useState(false);
   const [wordReviewCounts, setWordReviewCounts] = useState({});
-  const REVIEW_THRESHOLD = 3;  // 统一使用一个阈值
-  const SCORE_THRESHOLD = 5; // 保留分数阈值
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [wordStats, setWordStats] = useState({}); // 跟踪每个单词的状态
   const [showAddForm, setShowAddForm] = useState(false);
@@ -29,6 +27,8 @@ const WordList = () => {
   const [timer, setTimer] = useState(0);
   const [timerActive, setTimerActive] = useState(false);
   const QUICK_RESPONSE_TIME = 5; // 5秒快速响应阈值
+  const REVIEW_THRESHOLD = 3;  // 统一使用一个阈值
+  const SCORE_THRESHOLD = 5; // 保留分数阈值
 
   // 目前单页不限制单词数量, 直到所有单词都复习完 （所有需要复习词汇 + 20个新词汇）
   // TODO - 需要优化： 单词量很大时，一次性加载太多单词，影响性能
@@ -42,13 +42,15 @@ const WordList = () => {
     try {
       setLoading(true);
       const response = await getWords();
-      const total = response.total || response.data.length;
+      const wordsData = Array.isArray(response.data) ? response.data : [];
+      const total = response.total || wordsData.length;
       setTotalWords(total);  // 设置总数（不再改变）
       setRemainingWords(total);  // 设置初始剩余数
-      setWords(response.data);
+      setWords(wordsData);
     } catch (err) {
       console.error('获取单词列表失败:', err);
       setError('获取单词列表失败');
+      setWords([]); // 确保发生错误时 words 也是一个空数组
     } finally {
       setLoading(false);
     }
