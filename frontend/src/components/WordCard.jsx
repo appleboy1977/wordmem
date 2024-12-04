@@ -66,7 +66,19 @@ wrongSound.load();
 correctSound.volume = 0.5;  // 设置为50%音量
 wrongSound.volume = 0.9;    // 设置为90%音量
 
-const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect, stats, thresholds, onExclude, timer }) => {
+const WordCard = ({
+  word,                // 单词数据
+  onUpdateStatus,      // 更新状态回调
+  isCurrent,          // 是否为当前选中单词
+  onReviewComplete,    // 复习完成回调
+  onSelect,           // 选择单词回调
+  dataWordIndex,      // 单词索引
+  dataWordsLength,    // 单词总数
+  stats,              // 统计数据
+  thresholds,         // 阈值配置
+  onExclude,          // 排除单词回调
+  timer               // 计时器
+}) => {
   const { REVIEW_THRESHOLD, SCORE_THRESHOLD } = thresholds;
   const [showMeaning, setShowMeaning] = useState(false);
   const [note, setNote] = useState(word.note || '');
@@ -142,7 +154,9 @@ const WordCard = ({ word, onUpdateStatus, isCurrent, onReviewComplete, onSelect,
       note,
       level,
       elapsedTime: timer, 
-      reviewCount: reviewCount
+      reviewCount: reviewCount,
+      dataWordIndex: dataWordIndex,
+      dataWordsLength: dataWordsLength
     };
 
     // 更新状态

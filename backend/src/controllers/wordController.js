@@ -26,7 +26,7 @@ const getWords = (req, res) => {
 const updateWordStatus = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { wid, status, note, level, elapsedTime, reviewCount } = req.body;
+    const { wid, status, note, level, elapsedTime, reviewCount, dataWordIndex, dataWordsLength } = req.body;
     console.log("updating Word with: ", req.body);
     const updates = {};
     
@@ -76,7 +76,7 @@ const updateWordStatus = async (req, res) => {
       );
     });
 
-    console.log("Updated word: ", word, "updates: ", updates);
+    console.log("Updated word: ", word, "[", dataWordIndex, "/ ", dataWordsLength, "] updates: ", updates);
     res.json({
       ...updates,
       note: word.note,

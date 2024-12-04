@@ -334,7 +334,8 @@ const WordList = () => {
               isCurrent={isCurrentWord(index)}
               onReviewComplete={goToNextWord}
               onSelect={() => handleSelectWord(index)}
-              data-word-index={index}
+              dataWordIndex={index}
+              dataWordsLength={words.length}
               stats={wordStats[word.wid] || { 
                 knownCount: 0, 
                 reviewCount: 0, 
