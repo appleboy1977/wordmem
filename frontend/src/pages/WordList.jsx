@@ -3,6 +3,7 @@ import AddWordForm from '../components/AddWordForm';
 import FloatingStats from '../components/FloatingStats';
 import WordCard from '../components/WordCard';
 import { excludeWord, getWords, updateWordStatus } from '../services/api';
+import AudioService from '../services/audioService';
 
 // 添加复习状态常量
 const REVIEW_STATUS = {
@@ -26,7 +27,7 @@ const WordList = () => {
   const [success, setSuccess] = useState(null);
   const [timer, setTimer] = useState(0);
   const [timerActive, setTimerActive] = useState(false);
-  const QUICK_RESPONSE_TIME = 5; // 5秒快速响应阈值
+  const QUICK_RESPONSE_TIME = 7; // 7秒快速响应阈值
   const REVIEW_THRESHOLD = 3;  // 统一使用一个阈值
   const SCORE_THRESHOLD = 5; // 保留分数阈值
 
@@ -107,7 +108,7 @@ const WordList = () => {
               (newStats.reviewCount >= REVIEW_THRESHOLD && updatedWord.score >= SCORE_THRESHOLD) || // 或者复习3次且分数达标
               (currentStats.isFirstAttempt && // 首次尝试
                updates.status === REVIEW_STATUS.KNOWN && // 且认识
-               responseTime <= QUICK_RESPONSE_TIME); // 且响应时间小于5秒
+               responseTime <= QUICK_RESPONSE_TIME); // 且响应时间小于7秒
 
             if (shouldRemove) {
               setTimeout(() => {
@@ -228,8 +229,16 @@ const WordList = () => {
   // 添加处理排除单词的函数
   const handleExcludeWord = async (wid) => {
     try {
+      // Find the word and mark it as removing
+      setWords(prevWords => prevWords.map(w => 
+        w.wid === wid ? {...w, isRemoving: true} : w
+      ));
+
+      // Wait for animation
+      await new Promise(resolve => setTimeout(resolve, 800));
+
       await excludeWord(wid);
-      // 从列表中移除该单词
+      // Remove the word after animation
       setWords(prevWords => prevWords.filter(w => w.wid !== wid));
       setRemainingWords(prev => prev - 1);
       setSuccess('单词已成功移除');
@@ -251,6 +260,29 @@ const WordList = () => {
     }
     return () => clearInterval(interval);
   }, [timerActive]);
+
+  // Add cleanup when component unmounts
+  useEffect(() => {
+    return () => {
+      AudioService.cleanup();
+    };
+  }, []);
+
+  // Add suspend/resume when tab visibility changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        AudioService.suspend();
+      } else {
+        AudioService.resume();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-900 to-blue-700">

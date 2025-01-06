@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import AudioService from '../services/audioService';
 
 // 定义复习状态常量，与后端保持一致
 const REVIEW_STATUS = {
@@ -9,6 +10,12 @@ const REVIEW_STATUS = {
 
 const MAX_STARS = 5;
 const STAR_ICON = "★";
+
+// Add these CSS classes at the top of your file
+const slideOutClasses = {
+  enter: 'transform transition-all duration-500 opacity-100 translate-x-0',
+  exit: 'transform transition-all duration-500 opacity-0 translate-x-full'
+};
 
 // 添加音频播放图标 SVG 组件
 const SpeakerIcon = () => (
@@ -54,17 +61,11 @@ const RecycleIcon = () => (
   </svg>
 );
 
-// 在组件顶部添加音效引用
-const correctSound = new Audio('/sounds/correct.mp3');
-const wrongSound = new Audio('/sounds/error.mp3');
-
-// 预加载音效
-correctSound.load();
-wrongSound.load();
-
-// 在组件顶部设置音效音量
-correctSound.volume = 0.5;  // 设置为50%音量
-wrongSound.volume = 0.9;    // 设置为90%音量
+// Audio constants
+const SOUNDS = {
+  CORRECT: '/sounds/correct.mp3',
+  WRONG: '/sounds/error.mp3'
+};
 
 const WordCard = ({
   word,                // 单词数据
@@ -77,7 +78,8 @@ const WordCard = ({
   stats,              // 统计数据
   thresholds,         // 阈值配置
   onExclude,          // 排除单词回调
-  timer               // 计时器
+  timer,              // 计时器
+  isRemoving         // Add this new prop
 }) => {
   const { REVIEW_THRESHOLD, SCORE_THRESHOLD } = thresholds;
   const [showMeaning, setShowMeaning] = useState(false);
@@ -119,22 +121,46 @@ const WordCard = ({
     }
   };
 
-  // 处理复习状态更新
+  // Initialize audio on first interaction
+  const initAudio = async () => {
+    try {
+      await AudioService.initializeAudioContext();
+      // Now preload the sound effects
+      await AudioService.preloadAudio([SOUNDS.CORRECT, SOUNDS.WRONG]);
+    } catch (error) {
+      console.error('Failed to initialize audio:', error);
+    }
+  };
+
+  // Add click handler to initialize audio
+  useEffect(() => {
+    const handleFirstInteraction = async () => {
+      await initAudio();
+      document.removeEventListener('click', handleFirstInteraction);
+    };
+    
+    document.addEventListener('click', handleFirstInteraction);
+    return () => {
+      document.removeEventListener('click', handleFirstInteraction);
+    };
+  }, []);
+
+  // Handle status update with new audio implementation
   const handleStatusUpdate = async (status) => {
-    if (isReviewing) return; // 防止重复点击
+    if (isReviewing) return;
 
     setIsReviewing(true);
     setReviewCount(prev => prev + 1);
 
-    // 播放音效
+    // Play sound effects using AudioService
     try {
       if (status === REVIEW_STATUS.KNOWN) {
-        await correctSound.play();
+        await AudioService.playAudio(SOUNDS.CORRECT, 0.5);
       } else if (status === REVIEW_STATUS.FORGET) {
-        await wrongSound.play();
+        await AudioService.playAudio(SOUNDS.WRONG, 0.9);
       }
     } catch (error) {
-      console.error('播放音效失败:', error);
+      console.error('Failed to play sound effect:', error);
     }
 
     // 状态动画
@@ -227,26 +253,17 @@ const WordCard = ({
     );
   };
 
-  // 修改音频播放功能，只在当前卡片时播放
-  const playPronunciation = () => {
-    if (!isCurrent || !word.audio) return; // 只在当前卡片且有音频时播放
+  // Modified pronunciation playback
+  const playPronunciation = async () => {
+    if (!isCurrent || !word.audio) return;
 
-    // 如果已有正在播放的音频,先停止它
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+    try {
+      const prefix = 'https://www.oxfordlearnersdictionaries.com';
+      const audioUrl = word.audio.startsWith('http') ? word.audio : prefix + word.audio;
+      await AudioService.playAudio(audioUrl, 1.0);
+    } catch (error) {
+      console.error('Failed to play pronunciation:', error);
     }
-
-    const prefix = 'https://www.oxfordlearnersdictionaries.com/';
-    const audio_url = prefix + word.audio;
-    
-    // 创建新的音频实例并保存引用
-    const audio = new Audio(audio_url);
-    audioRef.current = audio;
-    
-    audio.play().catch(error => {
-      console.error('播放音频失败:', error);
-    });
   };
 
   // 修改鼠标悬停处理
@@ -372,6 +389,7 @@ const WordCard = ({
         }
         ${hasUnsavedChanges ? 'bg-blue-50' : ''}
         ${word.reviewed ? 'opacity-75' : ''}
+        ${isRemoving ? 'opacity-0 scale-95 -translate-x-full' : ''}
       `}
       onMouseLeave={handleMouseLeave}
     >
@@ -422,7 +440,10 @@ const WordCard = ({
             {word.audio && (
               <div 
                 className="flex items-center gap-2 cursor-pointer group"
-                onClick={playPronunciation}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  playPronunciation();
+                }}
                 title="点击播放发音"
               >
                 <span className="text-base text-gray-500 group-hover:text-gray-700">
@@ -465,7 +486,7 @@ const WordCard = ({
         
         {/* 释义和操作区域 - 只在当前卡片时才允许展开 */}
         <div className={`
-          mt-4 space-y-4 overflow-hidden transition-all duration-300 ease-in-out
+          mt-4 space-y-4 overflow-hidden transition-all duration-800 ease-in-out
           ${(showMeaning && isCurrent) ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}
         `}>
           {/* 添加回收按钮到展开区域顶部，只在非新词时显示 */}
@@ -510,22 +531,7 @@ const WordCard = ({
                 >
                   认识 👍
                 </button>
-                {/* <button
-                  data-status={REVIEW_STATUS.UNFAMILIAR}
-                  onClick={() => handleStatusUpdate(REVIEW_STATUS.UNFAMILIAR)}
-                  disabled={isReviewing}
-                  className={`
-                    px-4 py-3 sm:py-2 rounded-lg flex-1 
-                    transition-all duration-300
-                    bg-gray-50 hover:bg-yellow-50 
-                    text-gray-700 hover:text-yellow-700
-                    border border-gray-200 hover:border-yellow-200
-                    disabled:opacity-50 disabled:cursor-not-allowed
-                    invisible
-                  `}
-                >
-                  不熟悉 
-                </button> */}
+
                 <button
                   data-status={REVIEW_STATUS.FORGET}
                   onClick={() => handleStatusUpdate(REVIEW_STATUS.FORGET)}

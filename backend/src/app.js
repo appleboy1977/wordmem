@@ -4,6 +4,7 @@ const path = require('path');
 const dotenv = require('dotenv');
 const authRoutes = require('./routes/auth');
 const wordRoutes = require('./routes/words');
+const audioRouter = require('./routes/audio');
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ app.use(express.urlencoded({ extended: false }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/words', wordRoutes);
+app.use('/api/audio', audioRouter);
 
 app.use(express.static(path.join(__dirname, '../../frontend/dist')));
 
