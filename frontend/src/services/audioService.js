@@ -15,7 +15,7 @@ class AudioService {
     return audioContext;
   }
 
-  static async getAudio(url) {
+  static async getAudio(url, local = false) {
     // Check cache first
     if (audioCache.has(url)) {
       return audioCache.get(url);
@@ -25,9 +25,12 @@ class AudioService {
       // Initialize context if needed
       await this.initializeAudioContext();
       
-      const isExternalUrl = url.startsWith('http');
-      const fetchUrl = isExternalUrl ? `/api/audio/proxy?url=${encodeURIComponent(url)}` : url;
-      
+      //const isExternalUrl = url.startsWith('http');
+      //const fetchUrl = isExternalUrl ? `/api/audio/proxy?url=${encodeURIComponent(url)}` : url;
+      let fetchUrl = url;
+      if (!local) {
+        fetchUrl = `/api/audio/proxy?url=${encodeURIComponent(url)}`
+      }
       const response = await fetch(fetchUrl);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -73,7 +76,7 @@ class AudioService {
   static async preloadAudio(urls) {
     // Only preload after user interaction
     if (audioContext && audioContext.state === 'running') {
-      return Promise.all(urls.map(url => this.getAudio(url)));
+      return Promise.all(urls.map(url => this.getAudio(url, true)));
     }
     return Promise.resolve(); // Skip preloading if no user interaction yet
   }

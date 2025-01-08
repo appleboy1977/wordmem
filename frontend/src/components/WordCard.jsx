@@ -258,8 +258,9 @@ const WordCard = ({
     if (!isCurrent || !word.audio) return;
 
     try {
-      const prefix = 'https://www.oxfordlearnersdictionaries.com';
-      const audioUrl = word.audio.startsWith('http') ? word.audio : prefix + word.audio;
+      //const prefix = 'https://www.oxfordlearnersdictionaries.com';
+      //const audioUrl = word.audio.startsWith('http') ? word.audio : prefix + word.audio;
+      const audioUrl = word.audio;
       await AudioService.playAudio(audioUrl, 1.0);
     } catch (error) {
       console.error('Failed to play pronunciation:', error);

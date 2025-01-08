@@ -30,3 +30,7 @@ Thumbs.db
 # Database
 *.sqlite
 *.sqlite3
+
+#audio
+words_audio/
+words_audio_words_only/
