@@ -1,30 +1,28 @@
 const express = require('express');
+const fs = require('fs');
 const router = express.Router();
 const axios = require('axios');
+const path = require('path');
 
+const audio_root = path.resolve(__dirname, '../../data/words_audio');
 router.get('/proxy', async (req, res) => {
   try {
     const { url } = req.query;
     if (!url) {
       return res.status(400).json({ error: 'URL parameter is required' });
     }
-
-    const response = await axios({
-      method: 'get',
-      url: url,
-      responseType: 'arraybuffer',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      }
-    });
+    //get 
+    const audio_file = path.join(audio_root, url);
+    const response = fs.readFileSync(audio_file);
+    //return audio file
 
     // Set appropriate headers
-    res.setHeader('Content-Type', response.headers['content-type']);
-    res.setHeader('Content-Length', response.headers['content-length']);
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Content-Length', response.length);
     res.setHeader('Access-Control-Allow-Origin', '*');
 
     // Send the audio data
-    res.send(response.data);
+    res.send(response);
   } catch (error) {
     console.error('Audio proxy error:', error);
     res.status(500).json({ error: 'Failed to fetch audio' });
