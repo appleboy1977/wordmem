@@ -127,7 +127,6 @@ function getWordsToReview(userId, limit, offset, testDate = null, callback) {
         AND sr.user_id = ?
       where  (sr.excluded = FALSE OR sr.excluded IS NULL) 
             and sr.ldate is not NULL 
-            and sr.level > 1
             and sr.score <= ?
       ORDER BY 
         priority DESC,
