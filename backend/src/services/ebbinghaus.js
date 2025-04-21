@@ -171,7 +171,17 @@ function getWordsToReview(userId, limit, offset, testDate = null, callback) {
 
 async function getCombinedWords(userId, limit, offset, testDate = null, callback) {
   try {
-    const reviewLimit = 100; //do not limit review words
+    // Get user's limits
+    const user = await new Promise((resolve, reject) => {
+      db.get('SELECT reviewLimit, newLimit FROM users WHERE id = ?', [userId], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    const reviewLimit = user?.reviewLimit || 100;
+    const newLimit = user?.newLimit || 20;
+
     const wordsToReview = await new Promise((resolve, reject) => {
       getWordsToReview(userId, reviewLimit, offset, testDate, (err, words) => {
         if (err) reject(err);
@@ -179,7 +189,6 @@ async function getCombinedWords(userId, limit, offset, testDate = null, callback
       });
     });
 
-    const newLimit = 40;
     const wordsToStudy = await new Promise((resolve, reject) => {
       getWordsToStudy(userId, newLimit, offset, testDate, (err, words) => {
         if (err) reject(err);

@@ -41,3 +41,24 @@ exports.register = (req, res) => {
     res.status(201).json({ token });
   });
 };
+
+exports.updateUserLimits = (req, res) => {
+  const userId = req.user.id;
+  const { reviewLimit, newLimit } = req.body;
+
+  if (!reviewLimit || !newLimit) {
+    return res.status(400).json({ message: '请提供所有必要的限制值' });
+  }
+
+  db.run(
+    'UPDATE users SET reviewLimit = ?, newLimit = ? WHERE id = ?',
+    [reviewLimit, newLimit, userId],
+    function(err) {
+      if (err) {
+        console.error('更新用户限制失败:', err);
+        return res.status(500).json({ message: '服务器错误' });
+      }
+      res.json({ message: '用户限制更新成功' });
+    }
+  );
+};

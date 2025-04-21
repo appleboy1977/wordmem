@@ -4,6 +4,7 @@ import FloatingStats from '../components/FloatingStats';
 import WordCard from '../components/WordCard';
 import { excludeWord, getWords, updateWordStatus } from '../services/api';
 import AudioService from '../services/audioService';
+import axios from 'axios';
 
 // 添加复习状态常量
 const REVIEW_STATUS = {
@@ -27,6 +28,10 @@ const WordList = () => {
   const [success, setSuccess] = useState(null);
   const [timer, setTimer] = useState(0);
   const [timerActive, setTimerActive] = useState(false);
+  const [wrongWordsToday, setWrongWordsToday] = useState([]); // Add new state for wrong words
+  const [startTime, setStartTime] = useState(null);
+  const [endTime, setEndTime] = useState(null);
+  const [userLimits, setUserLimits] = useState({ reviewLimit: 100, newLimit: 20 });
   const QUICK_RESPONSE_TIME = 7; // 7秒快速响应阈值
   const REVIEW_THRESHOLD = 3;  // 统一使用一个阈值
   const SCORE_THRESHOLD = 5; // 保留分数阈值
@@ -36,8 +41,21 @@ const WordList = () => {
   const LIMIT = 999999;
 
   useEffect(() => {
+    fetchUserLimits();
     fetchWords();
+    setStartTime(new Date());
   }, []);
+
+  const fetchUserLimits = async () => {
+    try {
+      const response = await axios.get('/api/auth/limits');
+      if (response.data) {
+        setUserLimits(response.data);
+      }
+    } catch (err) {
+      console.error('获取用户限制失败:', err);
+    }
+  };
 
   const fetchWords = async () => {
     try {
@@ -45,13 +63,14 @@ const WordList = () => {
       const response = await getWords();
       const wordsData = Array.isArray(response.data) ? response.data : [];
       const total = response.total || wordsData.length;
-      setTotalWords(total);  // 设置总数（不再改变）
-      setRemainingWords(total);  // 设置初始剩余数
+      setTotalWords(total);
+      setRemainingWords(wordsData.length);
       setWords(wordsData);
     } catch (err) {
       console.error('获取单词列表失败:', err);
       setError('获取单词列表失败');
-      setWords([]); // 确保发生错误时 words 也是一个空数组
+      setWords([]);
+      setRemainingWords(0);
     } finally {
       setLoading(false);
     }
@@ -78,6 +97,23 @@ const WordList = () => {
         lastStatus: updates.status,
         isFirstAttempt: false
       };
+
+      // Track wrong words
+      if (updates.status === REVIEW_STATUS.FORGET) {
+        setWrongWordsToday(prev => {
+          const existingWord = prev.find(w => w.wid === wid);
+          if (existingWord) {
+            return prev.map(w => 
+              w.wid === wid 
+                ? { ...w, wrongCount: w.wrongCount + 1 } 
+                : w
+            );
+          } else {
+            const word = words.find(w => w.wid === wid);
+            return [...prev, { wid, word: word.word, wrongCount: 1 }];
+          }
+        });
+      }
 
       setWordStats(prev => ({
         ...prev,
@@ -121,7 +157,8 @@ const WordList = () => {
                   if (removeIndex === currentWordIndex) {
                     setCurrentWordIndex(Math.min(removeIndex, newWords.length - 1));
                   }
-                  setRemainingWords(prev => prev - 1);
+                  // 只在成功移除单词时更新剩余数
+                  setRemainingWords(newWords.length);
                   return newWords;
                 });
               }, 1000);
@@ -284,6 +321,33 @@ const WordList = () => {
     };
   }, []);
 
+  // Add effect to set end time when review is complete
+  useEffect(() => {
+    if (!loading && words.length === 0 && startTime) {
+      setEndTime(new Date());
+    }
+  }, [loading, words.length, startTime]);
+
+  // Format time duration
+  const formatDuration = (start, end) => {
+    if (!start || !end) return '0分钟';
+    const duration = Math.floor((end - start) / 1000); // duration in seconds
+    const minutes = Math.floor(duration / 60);
+    const seconds = duration % 60;
+    return `${minutes}分钟${seconds > 0 ? ` ${seconds}秒` : ''}`;
+  };
+
+  // Format date
+  const formatDate = (date) => {
+    if (!date) return '';
+    return date.toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'long'
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-900 to-blue-700">
       {/* 移除 visible 属性 */}
@@ -392,7 +456,31 @@ const WordList = () => {
           <div className="text-center py-12 bg-white/10 backdrop-blur-sm rounded-2xl">
             <div className="text-6xl mb-4">🎉</div>
             <h3 className="text-2xl font-bold text-white mb-2">太棒了！</h3>
-            <p className="text-blue-200">今天的单词都复习完了，继续保持！</p>
+            <p className="text-blue-200 mb-4">今天的单词都复习完了，继续保持！</p>
+            
+            {/* 添加时间信息 */}
+            <div className="mt-4 text-white/80 text-sm space-y-1">
+              <p>日期：{formatDate(startTime)}</p>
+              <p>开始时间：{startTime?.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</p>
+              <p>结束时间：{endTime?.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</p>
+              <p>总复习时间：{formatDuration(startTime, endTime)}</p>
+            </div>
+            
+            {wrongWordsToday.length > 0 && (
+              <div className="mt-6 text-left max-w-md mx-auto">
+                <h4 className="text-lg font-semibold text-white mb-2">今天需要加强的单词：</h4>
+                <div className="space-y-2">
+                  {wrongWordsToday
+                    .sort((a, b) => b.wrongCount - a.wrongCount)
+                    .map((word, index) => (
+                      <div key={word.wid} className="flex justify-between items-center bg-white/10 p-2 rounded">
+                        <span className="text-white">{word.word}</span>
+                        <span className="text-red-400">错误 {word.wrongCount} 次</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
