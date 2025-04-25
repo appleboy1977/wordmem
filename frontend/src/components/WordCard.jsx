@@ -528,9 +528,11 @@ const WordCard = ({
                     text-gray-700 hover:text-green-700
                     border border-gray-200 hover:border-green-200
                     disabled:opacity-50 disabled:cursor-not-allowed
+                    group relative
                   `}
                 >
-                  认识 👍
+                  <span className="group-hover:hidden">确定！完全正确 </span>
+                  <span className="hidden group-hover:inline font-bold">确定认识再点我哦...</span>
                 </button>
 
                 <button
@@ -544,9 +546,11 @@ const WordCard = ({
                     text-gray-700 hover:text-red-700
                     border border-gray-200 hover:border-red-200
                     disabled:opacity-50 disabled:cursor-not-allowed
+                    group relative
                   `}
                 >
-                  忘记 😅
+                  <span className="group-hover:hidden">模糊/不确定 😅</span>
+                  <span className="hidden group-hover:inline font-bold">模糊的词语看看例句，用力记一下</span>
                 </button>
               </div>
             </>

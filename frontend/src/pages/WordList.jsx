@@ -468,7 +468,12 @@ const WordList = () => {
             
             {wrongWordsToday.length > 0 && (
               <div className="mt-6 text-left max-w-md mx-auto">
-                <h4 className="text-lg font-semibold text-white mb-2">今天需要加强的单词：</h4>
+                <h4 className="text-lg font-semibold text-white mb-2">
+                  需加强的单词：
+                  <span className="text-sm font-normal ml-2">
+                    {new Date().toISOString().split('T')[0]} ({wrongWordsToday.length}个)
+                  </span>
+                </h4>
                 <div className="space-y-2">
                   {wrongWordsToday
                     .sort((a, b) => b.wrongCount - a.wrongCount)
